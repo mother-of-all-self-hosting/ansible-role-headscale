@@ -204,11 +204,14 @@ headscale_floc_optout_enabled: true
 # See: `headscale_http_header_strict_transport_security`
 headscale_hsts_preload_enabled: false
 
-# List of systemd services that headscale.service depends on
+# List of systemd services that the Headscale systemd service depends on
 headscale_systemd_required_services_list: "{{ headscale_systemd_required_services_list_default + headscale_systemd_required_services_list_auto + headscale_systemd_required_services_list_custom }}"
 headscale_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
 headscale_systemd_required_services_list_auto: []
 headscale_systemd_required_services_list_custom: []
+
+# List of systemd services that the Headscale systemd service wants
+headscale_systemd_wanted_services_list: []
 
 # Controls the `server_url` configuration value
 headscale_config_server_url: "{{ headscale_scheme }}://{{ headscale_hostname }}"
