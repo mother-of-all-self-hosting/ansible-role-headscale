@@ -7,32 +7,30 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
 # Project source code URL: https://github.com/juanfont/headscale
 
 headscale_enabled: true
 
 headscale_identifier: headscale
-
-headscale_uid: ''
-headscale_gid: ''
-
-# renovate: datasource=docker depName=headscale/headscale
-headscale_version: v0.25.1
-
-headscale_scheme: https
-
-# The hostname at which headscale is served.
-headscale_hostname: ''
-
-# The path at which headscale is served.
-# This value must either be `/` or not end with a slash (e.g. `/headscale`).
-headscale_path_prefix: /
-
 headscale_base_path: "/{{ headscale_identifier }}"
 headscale_bin_path: "{{ headscale_base_path }}/bin"
 headscale_config_path: "{{ headscale_base_path }}/config"
 headscale_data_path: "{{ headscale_base_path }}/data"
+
+# renovate: datasource=docker depName=headscale/headscale
+headscale_version: v0.25.1
+
+headscale_uid: ''
+headscale_gid: ''
+
+# The hostname at which headscale is served.
+headscale_hostname: ''
+
+headscale_scheme: https
+
+# The path at which headscale is served.
+# This value must either be `/` or not end with a slash (e.g. `/headscale`).
+headscale_path_prefix: /
 
 headscale_container_image: "{{ headscale_container_image_registry_prefix }}headscale/headscale:{{ headscale_container_image_tag }}"
 headscale_container_image_tag: "{{ headscale_version }}"
@@ -40,31 +38,6 @@ headscale_container_image_registry_prefix: "{{ headscale_container_image_registr
 headscale_container_image_registry_prefix_upstream: "{{ headscale_container_image_registry_prefix_upstream_default }}"
 headscale_container_image_registry_prefix_upstream_default: docker.io/
 headscale_container_image_force_pull: "{{ headscale_container_image.endswith(':latest') }}"
-
-# The base container network. It will be auto-created by this role if it doesn't exist already.
-headscale_container_network: "{{ headscale_identifier }}"
-
-# A list of additional container networks that the container would be connected to.
-# The role does not create these networks, so make sure they already exist.
-# Use this to expose this container to another reverse proxy, which runs in a different container network.
-headscale_container_additional_networks: "{{ headscale_container_additional_networks_auto + headscale_container_additional_networks_custom }}"
-headscale_container_additional_networks_auto: []
-headscale_container_additional_networks_custom: []
-
-# The command to run inside the container
-headscale_container_command: serve
-
-# The HTTP API port (8080) to use inside the container.
-# Also see: `headscale_container_http_api_bind_port` and `headscale_config_listen_addr`.
-headscale_container_http_api_port: 8080
-
-# The HTTP metrics port (9090) to use inside the container.
-# Also see: `headscale_container_http_metrics_bind_port` and `headscale_config_metrics_listen_addr`.
-headscale_container_http_metrics_port: 9090
-
-# The gRPC port (50443) to use inside the container.
-# Also see: `headscale_container_grpc_bind_port` and `headscale_config_grpc_listen_addr`.
-headscale_container_grpc_port: 50443
 
 # Specifies how the container publishes its HTTP API port (`headscale_container_http_api_port`).
 #
@@ -80,6 +53,35 @@ headscale_container_http_metrics_bind_port: ''
 #
 # Takes an "<ip>:<port>" value (e.g. "127.0.0.1:50443"), just a port number or an empty string to not expose.
 headscale_container_grpc_bind_port: ''
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+headscale_container_network: "{{ headscale_identifier }}"
+
+# The HTTP API port (8080) to use inside the container.
+# Also see: `headscale_container_http_api_bind_port` and `headscale_config_listen_addr`.
+headscale_container_http_api_port: 8080
+
+# The HTTP metrics port (9090) to use inside the container.
+# Also see: `headscale_container_http_metrics_bind_port` and `headscale_config_metrics_listen_addr`.
+headscale_container_http_metrics_port: 9090
+
+# The gRPC port (50443) to use inside the container.
+# Also see: `headscale_container_grpc_bind_port` and `headscale_config_grpc_listen_addr`.
+headscale_container_grpc_port: 50443
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+headscale_container_additional_networks: "{{ headscale_container_additional_networks_auto + headscale_container_additional_networks_custom }}"
+headscale_container_additional_networks_auto: []
+headscale_container_additional_networks_custom: []
+
+# A list of additional "volumes" to mount in the container.
+# This list gets populated dynamically at runtime. You can provide a different default value,
+# if you wish to mount your own files into the container.
+# Contains definition objects like this: `{"type": "bind", "src": "/outside", "dst": "/inside", "options": "readonly"}.
+# See the `--mount` documentation for the `docker run` command.
+headscale_container_additional_volumes: []
 
 # headscale_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
 # See `../templates/labels.j2` for details.
@@ -144,18 +146,8 @@ headscale_container_labels_additional_labels: ''
 # See: https://github.com/mother-of-all-self-hosting/mash-playbook/issues/391
 headscale_container_hostname: ''
 
-# A list of additional "volumes" to mount in the container.
-# This list gets populated dynamically at runtime. You can provide a different default value,
-# if you wish to mount your own files into the container.
-# Contains definition objects like this: `{"type": "bind", "src": "/outside", "dst": "/inside", "options": "readonly"}.
-# See the `--mount` documentation for the `docker run` command.
-headscale_container_additional_volumes: []
-
 # A list of extra arguments to pass to the container
 headscale_container_extra_arguments: []
-
-# Additional environment variables.
-headscale_environment_variables_additional_variables: ''
 
 # Specifies the value of the `X-XSS-Protection` header
 # Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
@@ -212,6 +204,12 @@ headscale_systemd_required_services_list_custom: []
 
 # List of systemd services that the Headscale systemd service wants
 headscale_systemd_wanted_services_list: []
+
+# Additional environment variables.
+headscale_environment_variables_additional_variables: ''
+
+# The command to run inside the container
+headscale_container_command: serve
 
 # Controls the `server_url` configuration value
 headscale_config_server_url: "{{ headscale_scheme }}://{{ headscale_hostname }}"
