@@ -233,7 +233,7 @@ log:
 policy:
   # The mode can be "file" or "database" that defines
   # where the ACL policies are stored and read from.
-  mode: file
+  mode: {{ headscale_config_policy_mode | to_json }}
   # If the mode is set to "file", the path to a
   # HuJSON file containing ACL policies.
   path: ""

@@ -329,6 +329,9 @@ headscale_config_log_format: text
 # Controls the `log.level` configuration value
 headscale_config_log_level: info
 
+# Controls the `policy.mode` configuration value
+headscale_config_policy_mode: file
+
 # Controls the `dns.magic_dns` configuration value
 headscale_config_dns_magic_dns: true
 
