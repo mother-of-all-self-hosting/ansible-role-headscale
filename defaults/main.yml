@@ -17,6 +17,15 @@ headscale_bin_path: "{{ headscale_base_path }}/bin"
 headscale_config_path: "{{ headscale_base_path }}/config"
 headscale_data_path: "{{ headscale_base_path }}/data"
 
+# Controls the creation of the 'extra-records.json' file
+# Mutually exclusive with `dns.extra_records`, setting this to true disables `headscale_config_dns_extra_records`
+# Intended for use with a companion service, like Headplane, which modifies the contents of the file
+#
+# Learn more about it here:
+# - https://headscale.net/stable/ref/dns/#setting-extra-dns-records
+# - https://github.com/tale/headplane/blob/6d5e44f585469dd147b8c1dcc57f78fe9f7b0e72/config.example.yaml#L59
+headscale_extra_records_path_enabled: false
+
 # renovate: datasource=docker depName=headscale/headscale
 headscale_version: v0.27.0
 

@@ -24,6 +24,16 @@
     owner: "{{ headscale_uid }}"
     group: "{{ headscale_gid }}"
 
+- name: Ensure Headscale extra-records.json file exists
+  ansible.builtin.copy:
+    content: "[]"
+    dest: "{{ headscale_data_path }}/extra-records.json"
+    mode: "0644"
+    owner: "{{ headscale_uid }}"
+    group: "{{ headscale_gid }}"
+    force: false # Only modify/create the file if it doesn't already exist
+  when: headscale_extra_records_path_enabled
+
 - name: Ensure Headscale support files installed
   ansible.builtin.template:
     src: "{{ item.src }}"
