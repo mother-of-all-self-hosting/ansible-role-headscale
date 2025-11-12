@@ -27,7 +27,7 @@ headscale_data_path: "{{ headscale_base_path }}/data"
 headscale_extra_records_path_enabled: false
 
 # renovate: datasource=docker depName=headscale/headscale
-headscale_version: v0.27.0
+headscale_version: v0.27.1
 
 headscale_uid: ''
 headscale_gid: ''
