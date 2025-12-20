@@ -219,9 +219,6 @@ headscale_systemd_wanted_services_list_default: []
 headscale_systemd_wanted_services_list_auto: []
 headscale_systemd_wanted_services_list_custom: []
 
-# Additional environment variables.
-headscale_environment_variables_additional_variables: ''
-
 # The command to run inside the container
 headscale_container_command: serve
 
@@ -415,3 +412,9 @@ headscale_configuration_extension: "{{ headscale_configuration_extension_yaml | 
 # Holds the final Headscale configuration (a combination of the default and its extension).
 # You most likely don't need to touch this variable. Instead, see `headscale_configuration_yaml`.
 headscale_configuration: "{{ headscale_configuration_yaml | from_yaml | combine(headscale_configuration_extension, recursive=True) }}"
+
+# Specify the timezone
+headscale_environment_variables_tz: UTC
+
+# Additional environment variables.
+headscale_environment_variables_additional_variables: ''
