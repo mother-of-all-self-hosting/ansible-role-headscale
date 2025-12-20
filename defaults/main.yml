@@ -158,7 +158,9 @@ headscale_container_labels_additional_labels: ''
 headscale_container_hostname: ''
 
 # A list of extra arguments to pass to the container
-headscale_container_extra_arguments: []
+headscale_container_extra_arguments: "{{ headscale_container_extra_arguments_auto + headscale_container_extra_arguments_custom }}"
+headscale_container_extra_arguments_auto: []
+headscale_container_extra_arguments_custom: []
 
 # Specifies the value of the `X-XSS-Protection` header
 # Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
