@@ -29,11 +29,11 @@ headscale_extra_records_path_enabled: false
 # renovate: datasource=docker depName=headscale/headscale
 headscale_version: v0.27.1
 
-headscale_uid: ''
-headscale_gid: ''
+headscale_uid: ""
+headscale_gid: ""
 
 # The hostname at which headscale is served.
-headscale_hostname: ''
+headscale_hostname: ""
 
 headscale_scheme: https
 
@@ -51,17 +51,17 @@ headscale_container_image_force_pull: "{{ headscale_container_image.endswith(':l
 # Specifies how the container publishes its HTTP API port (`headscale_container_http_api_port`).
 #
 # Takes an "<ip>:<port>" value (e.g. "127.0.0.1:8080"), just a port number or an empty string to not expose.
-headscale_container_http_api_bind_port: ''
+headscale_container_http_api_bind_port: ""
 
 # Specifies how the container publishes its HTTP metrics port (`headscale_container_http_metrics_port`)
 #
 # Takes an "<ip>:<port>" value (e.g. "127.0.0.1:9090"), just a port number or an empty string to not expose.
-headscale_container_http_metrics_bind_port: ''
+headscale_container_http_metrics_bind_port: ""
 
 # Specifies how the container publishes its gRPC port (`headscale_container_grpc_port`).
 #
 # Takes an "<ip>:<port>" value (e.g. "127.0.0.1:50443"), just a port number or an empty string to not expose.
-headscale_container_grpc_bind_port: ''
+headscale_container_grpc_bind_port: ""
 
 # The base container network. It will be auto-created by this role if it doesn't exist already.
 headscale_container_network: "{{ headscale_identifier }}"
@@ -158,7 +158,7 @@ headscale_container_labels_additional_labels_custom: {}
 # Intentionally leaving this blank, instead of defaulting it to `headscale_hostname`, to avoid specifying a hostname
 # which could render other services on that hostname potentially unreachable.
 # See: https://github.com/mother-of-all-self-hosting/mash-playbook/issues/391
-headscale_container_hostname: ''
+headscale_container_hostname: ""
 
 # A list of extra arguments to pass to the container (`docker create` command)
 headscale_container_extra_arguments: "{{ headscale_container_extra_arguments_auto + headscale_container_extra_arguments_custom }}"
@@ -422,4 +422,4 @@ headscale_configuration: "{{ headscale_configuration_yaml | from_yaml | combine(
 headscale_environment_variables_tz: UTC
 
 # Additional environment variables.
-headscale_environment_variables_additional_variables: ''
+headscale_environment_variables_additional_variables: ""
