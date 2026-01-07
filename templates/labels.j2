@@ -103,4 +103,6 @@ traefik.http.services.{{ headscale_identifier }}-grpc.loadbalancer.server.scheme
 
 {% endif %}
 
-{{ headscale_container_labels_additional_labels }}
+{% for arg in headscale_container_labels_additional_labels %}
+{{ arg }}
+{% endfor %}
