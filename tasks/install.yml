@@ -16,24 +16,6 @@
     - "{{ headscale_config_path }}"
     - "{{ headscale_data_path }}"
 
-- name: Ensure Headscale configuration file installed
-  ansible.builtin.copy:
-    content: "{{ headscale_configuration | to_nice_yaml(indent=2, width=999999) }}"
-    dest: "{{ headscale_config_path }}/config.yaml"
-    mode: "0644"
-    owner: "{{ headscale_uid }}"
-    group: "{{ headscale_gid }}"
-
-- name: Ensure Headscale extra-records.json file exists
-  ansible.builtin.copy:
-    content: "[]"
-    dest: "{{ headscale_data_path }}/extra-records.json"
-    mode: "0644"
-    owner: "{{ headscale_uid }}"
-    group: "{{ headscale_gid }}"
-    force: false # Only modify/create the file if it doesn't already exist
-  when: headscale_extra_records_path_enabled
-
 - name: Ensure Headscale support files installed
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -51,6 +33,24 @@
     - src: "{{ role_path }}/templates/bin/headscale.j2"
       dest: "{{ headscale_bin_path }}/headscale"
       mode: "0755"
+
+- name: Ensure Headscale configuration file installed
+  ansible.builtin.copy:
+    content: "{{ headscale_configuration | to_nice_yaml(indent=2, width=999999) }}"
+    dest: "{{ headscale_config_path }}/config.yaml"
+    mode: "0644"
+    owner: "{{ headscale_uid }}"
+    group: "{{ headscale_gid }}"
+
+- name: Ensure Headscale extra-records.json file exists
+  ansible.builtin.copy:
+    content: "[]"
+    dest: "{{ headscale_data_path }}/extra-records.json"
+    mode: "0644"
+    owner: "{{ headscale_uid }}"
+    group: "{{ headscale_gid }}"
+    force: false # Only modify/create the file if it doesn't already exist
+  when: headscale_extra_records_path_enabled
 
 - name: Ensure Headscale container image is pulled via community.docker.docker_image
   when: devture_systemd_docker_base_container_image_pull_method == 'ansible-module'
