@@ -148,7 +148,7 @@ headscale_container_labels_traefik_additional_response_headers_custom: {}
 # To add your own custom labels, use `headscale_container_labels_additional_labels_custom`
 #
 # Example:
-# headscale_container_labels_additional_labels_custom: |
+# headscale_container_labels_additional_labels_custom:
 #   - my.label=1
 #   - another.label="here"
 headscale_container_labels_additional_labels: "{{ headscale_container_labels_additional_labels_auto + headscale_container_labels_additional_labels_custom }}"
