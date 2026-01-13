@@ -32,10 +32,11 @@ headscale_version: v0.27.1
 headscale_uid: ""
 headscale_gid: ""
 
+# The scheme used for serving headscale.
+headscale_scheme: https
+
 # The hostname at which headscale is served.
 headscale_hostname: ""
-
-headscale_scheme: https
 
 # The path at which headscale is served.
 # This value must either be `/` or not end with a slash (e.g. `/headscale`).
