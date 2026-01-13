@@ -32,13 +32,13 @@ headscale_version: v0.27.1
 headscale_uid: ""
 headscale_gid: ""
 
-# The scheme used for serving headscale.
+# The scheme used for serving Headscale.
 headscale_scheme: https
 
-# The hostname at which headscale is served.
+# The hostname at which Headscale is served.
 headscale_hostname: ""
 
-# The path at which headscale is served.
+# The path at which Headscale is served.
 # This value must either be `/` or not end with a slash (e.g. `/headscale`).
 headscale_path_prefix: /
 
@@ -381,7 +381,7 @@ headscale_config_dns_extra_records: []
 
 # Controls the `logtail.enabled` configuration value
 #
-# Enables logtail for this headscale client.
+# Enables logtail for this Headscale client.
 # As there is currently no support for overriding the log server in headscale, this is
 # disabled by default. Enabling this will make your clients send logs to Tailscale Inc.
 headscale_config_logtail_enabled: false
