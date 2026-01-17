@@ -49,6 +49,9 @@ headscale_container_image_registry_prefix_upstream: "{{ headscale_container_imag
 headscale_container_image_registry_prefix_upstream_default: docker.io/
 headscale_container_image_force_pull: "{{ headscale_container_image.endswith(':latest') }}"
 
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+headscale_container_network: "{{ headscale_identifier }}"
+
 # Specifies how the container publishes its HTTP API port (`headscale_container_http_api_port`).
 #
 # Takes an "<ip>:<port>" value (e.g. "127.0.0.1:8080"), just a port number or an empty string to not expose.
@@ -63,9 +66,6 @@ headscale_container_http_metrics_bind_port: ""
 #
 # Takes an "<ip>:<port>" value (e.g. "127.0.0.1:50443"), just a port number or an empty string to not expose.
 headscale_container_grpc_bind_port: ""
-
-# The base container network. It will be auto-created by this role if it doesn't exist already.
-headscale_container_network: "{{ headscale_identifier }}"
 
 # The HTTP API port (8080) to use inside the container.
 # Also see: `headscale_container_http_api_bind_port` and `headscale_config_listen_addr`.
