@@ -52,19 +52,19 @@ headscale_container_image_force_pull: "{{ headscale_container_image.endswith(':l
 # The base container network. It will be auto-created by this role if it doesn't exist already.
 headscale_container_network: "{{ headscale_identifier }}"
 
-# Specifies how the container publishes its HTTP API port (`headscale_container_http_api_port`).
+# Specify how the container publishes its HTTP API port (as defined by `headscale_container_http_api_port`).
 #
-# Takes an "<ip>:<port>" value (e.g. "127.0.0.1:8080"), just a port number or an empty string to not expose.
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:8080"), just a port number or an empty string to not expose.
 headscale_container_http_api_bind_port: ""
 
-# Specifies how the container publishes its HTTP metrics port (`headscale_container_http_metrics_port`)
+# Specify how the container publishes its HTTP metrics port (as defined by `headscale_container_http_metrics_port`)
 #
-# Takes an "<ip>:<port>" value (e.g. "127.0.0.1:9090"), just a port number or an empty string to not expose.
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:9090"), just a port number or an empty string to not expose.
 headscale_container_http_metrics_bind_port: ""
 
-# Specifies how the container publishes its gRPC port (`headscale_container_grpc_port`).
+# Specify how the container publishes its gRPC port (as defined by `headscale_container_grpc_port`).
 #
-# Takes an "<ip>:<port>" value (e.g. "127.0.0.1:50443"), just a port number or an empty string to not expose.
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:50443"), just a port number or an empty string to not expose.
 headscale_container_grpc_bind_port: ""
 
 # The HTTP API port (8080) to use inside the container.
