@@ -294,7 +294,7 @@ headscale_config_derp_server_paths: []
 headscale_config_derp_server_auto_update_enabled: true
 
 # Controls the `derp.server.update_frequency` configuration value
-headscale_config_derp_server_update_frequency: 24h
+headscale_config_derp_server_update_frequency: 3h
 
 # Controls the `disable_check_updates` configuration value
 headscale_config_disable_check_updates: false
