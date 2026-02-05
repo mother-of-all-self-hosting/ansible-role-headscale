@@ -392,6 +392,12 @@ headscale_config_logtail_enabled: false
 # firewall devices. See https://tailscale.com/kb/1181/firewalls/ for more information.
 headscale_config_randomize_client_port: false
 
+# Controls the `taildrop.enabled` configuration value.
+# Taildrop is the file sharing feature of Tailscale, allowing nodes to send files to each other.
+# When enabled, nodes can send files to other nodes owned by the same user.
+# See https://tailscale.com/kb/1106/taildrop/ for more information.
+headscale_config_taildrop_enabled: true
+
 # Default Headscale configuration template which covers the generic use case.
 # You can customize it by controlling the various variables inside it.
 #
