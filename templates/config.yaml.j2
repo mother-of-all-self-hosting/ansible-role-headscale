@@ -84,6 +84,9 @@ derp:
     region_code: {{ headscale_config_derp_server_region_code | to_json }}
     region_name: {{ headscale_config_derp_server_region_name | to_json }}
 
+    # Only allow clients associated with this server access
+    verify_clients: {{ headscale_config_derp_server_verify_clients | to_json }}
+
     # Listens over UDP at the configured address for STUN connections - to help with NAT traversal.
     # When the embedded DERP server is enabled stun_listen_addr MUST be defined.
     #

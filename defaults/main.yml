@@ -264,6 +264,10 @@ headscale_config_derp_server_region_code: "headscale"
 # Controls the `derp.server.region_name` configuration value
 headscale_config_derp_server_region_name: "Headscale Embedded DERP"
 
+# Controls the `derp.server.verify_clients` configuration value.
+# When enabled, only allows clients associated with this server to use the embedded DERP server.
+headscale_config_derp_server_verify_clients: true
+
 # Controls the `derp.server.stun_listen_addr` configuration value
 headscale_config_derp_server_stun_listen_addr: "0.0.0.0:3478"
 
