@@ -335,6 +335,12 @@ headscale_config_log_level: info
 # Controls the `policy.mode` configuration value
 headscale_config_policy_mode: file
 
+# Controls the `dns.override_local_dns` configuration value.
+# When true (default), Headscale overrides the local DNS settings of nodes
+# and forces the use of Headscale's DNS configuration.
+# When false, nodes use their local DNS settings alongside Headscale's DNS.
+headscale_config_dns_override_local_dns: true
+
 # Controls the `dns.magic_dns` configuration value
 headscale_config_dns_magic_dns: true
 

@@ -263,6 +263,10 @@ dns:
   # Whether to use [MagicDNS](https://tailscale.com/kb/1081/magicdns/).
   magic_dns: {{ headscale_config_dns_magic_dns | to_json }}
 
+  # Whether to use the local DNS settings of a node or override the local DNS
+  # settings (default) and force the use of Headscale's DNS configuration.
+  override_local_dns: {{ headscale_config_dns_override_local_dns | to_json }}
+
   # Defines the base domain to create the hostnames for MagicDNS.
   # This domain _must_ be different from the server_url domain.
   # `base_domain` must be a FQDN, without the trailing dot.
