@@ -46,6 +46,37 @@
       headscale_config_log_format must be 'text' or 'json'
   when: "headscale_config_log_format not in ['text', 'json']"
 
+- name: Run OIDC validation if OIDC is enabled
+  when: headscale_config_oidc_enabled | bool
+  block:
+    - name: Fail if required OIDC settings are not defined
+      ansible.builtin.fail:
+        msg: >-
+          You need to define a required configuration setting (`{{ item.name }}`).
+      when: "lookup('vars', item.name, default='') | string | length == 0"
+      with_items:
+        - { name: headscale_config_oidc_issuer }
+        - { name: headscale_config_oidc_client_id }
+
+    - name: Fail if both OIDC client_secret and client_secret_path are defined
+      ansible.builtin.fail:
+        msg: >-
+          headscale_config_oidc_client_secret and headscale_config_oidc_client_secret_path are mutually exclusive.
+          Please define only one of them.
+      when: "headscale_config_oidc_client_secret | length > 0 and headscale_config_oidc_client_secret_path | length > 0"
+
+    - name: Fail if neither OIDC client_secret nor client_secret_path is defined
+      ansible.builtin.fail:
+        msg: >-
+          You need to define either headscale_config_oidc_client_secret or headscale_config_oidc_client_secret_path.
+      when: "headscale_config_oidc_client_secret | length == 0 and headscale_config_oidc_client_secret_path | length == 0"
+
+    - name: Fail if OIDC PKCE method is invalid
+      ansible.builtin.fail:
+        msg: >-
+          headscale_config_oidc_pkce_method must be 'plain' or 'S256'.
+      when: "headscale_config_oidc_pkce_method not in ['plain', 'S256']"
+
 - name: Run if Traefik is enabled
   when: headscale_container_labels_traefik_enabled | bool
   block:
