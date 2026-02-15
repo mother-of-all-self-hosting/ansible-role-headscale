@@ -24,21 +24,24 @@
         path: "{{ devture_systemd_docker_base_systemd_path }}/{{ headscale_identifier }}.service"
         state: absent
 
-    - name: Ensure Headscale container network does not exist via community.docker.docker_network
-      when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
-      community.docker.docker_network:
-        name: "{{ headscale_container_network }}"
-        state: absent
-      register: headscale_network_deletion_result
+    - name: Ensure Headscale container network does not exist
+      when: headscale_container_network_deletion_enabled
+      block:
+        - name: Ensure Headscale container network does not exist via community.docker.docker_network
+          when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+          community.docker.docker_network:
+            name: "{{ headscale_container_network }}"
+            state: absent
+          register: headscale_network_deletion_result
 
-    - name: Ensure Headscale container network does not exist via ansible.builtin.command
-      when: devture_systemd_docker_base_container_network_creation_method == 'command'
-      ansible.builtin.command:
-        cmd: >-
-          {{ devture_systemd_docker_base_host_command_docker }} network rm
-          {{ headscale_container_network }}
-      register: headscale_network_deletion_result
-      changed_when: headscale_container_network in headscale_network_deletion_result.stdout
+        - name: Ensure Headscale container network does not exist via ansible.builtin.command
+          when: devture_systemd_docker_base_container_network_creation_method == 'command'
+          ansible.builtin.command:
+            cmd: >-
+              {{ devture_systemd_docker_base_host_command_docker }} network rm
+              {{ headscale_container_network }}
+          register: headscale_network_deletion_result
+          changed_when: headscale_container_network in headscale_network_deletion_result.stdout
 
     - name: Ensure Headscale path does not exist
       ansible.builtin.file:
