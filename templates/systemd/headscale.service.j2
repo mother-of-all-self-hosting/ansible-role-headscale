@@ -44,7 +44,7 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       --mount type=bind,src={{ headscale_config_path }},dst=/etc/headscale \
       --mount type=bind,src={{ headscale_data_path }},dst=/var/lib/headscale \
       {% for volume in headscale_container_additional_volumes %}
-      --mount type={{ volume.type | default('bind' if '/' in volume.src else 'volume') }},src={{ volume.src }},dst={{ volume.dst }}{{ (',' + volume.options) if volume.options else '' }} \
+      --mount type={{ volume.type | default('bind' if '/' in volume.src else 'volume') }},src={{ volume.src }},dst={{ volume.dst }}{{ (',' + volume.options) if volume.options | default('') else '' }} \
       {% endfor %}
       --tmpfs /var/run/headscale:mode=0755,uid={{ headscale_uid }},gid={{ headscale_gid }} \
       {% for arg in headscale_container_extra_arguments %}
