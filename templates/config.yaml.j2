@@ -133,8 +133,15 @@ derp:
 # Disables the automatic check for headscale updates on startup
 disable_check_updates: {{ headscale_config_disable_check_updates | to_json }}
 
-# Time before an inactive ephemeral node is deleted?
-ephemeral_node_inactivity_timeout: {{ headscale_config_ephemeral_node_inactivity_timeout | to_json }}
+node:
+  # Default key expiry for non-tagged nodes, regardless of registration method
+  # (auth key, CLI, web auth). Tagged nodes are exempt and never expire.
+  # Setting the value to "0" means no default expiry.
+  expiry: {{ headscale_config_node_expiry | to_json }}
+
+  ephemeral:
+    # Time before an inactive ephemeral node is deleted.
+    inactivity_timeout: {{ headscale_config_node_ephemeral_inactivity_timeout | to_json }}
 
 database:
   # Database type. Available options: postgres, sqlite
@@ -322,7 +329,6 @@ oidc:
 {% if headscale_config_oidc_client_secret_path %}
   client_secret_path: {{ headscale_config_oidc_client_secret_path | to_json }}
 {% endif %}
-  expiry: {{ headscale_config_oidc_expiry | to_json }}
   use_expiry_from_token: {{ headscale_config_oidc_use_expiry_from_token | to_json }}
   scope: {{ headscale_config_oidc_scope | to_json }}
   email_verified_required: {{ headscale_config_oidc_email_verified_required | to_json }}
@@ -343,11 +349,6 @@ logtail:
   # As there is currently no support for overriding the log server in headscale, this is
   # disabled by default. Enabling this will make your clients send logs to Tailscale Inc.
   enabled: {{ headscale_config_logtail_enabled | to_json }}
-
-# Enabling this option makes devices prefer a random port for WireGuard traffic over the
-# default static port 41641. This option is intended as a workaround for some buggy
-# firewall devices. See https://tailscale.com/kb/1181/firewalls/ for more information.
-randomize_client_port: {{ headscale_config_randomize_client_port | to_json }}
 
 # Taildrop configuration
 # Taildrop is the file sharing feature of Tailscale, allowing nodes to send files to each other.

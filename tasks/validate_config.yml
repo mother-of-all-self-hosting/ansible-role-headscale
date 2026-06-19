@@ -13,6 +13,9 @@
   with_items:
     - { "old": "headscale_http_header_content_permission_policy", "new": "headscale_http_header_permissions_policy" }
     - { "old": "headscale_container_image_force_pull", "new": "<removed> (the new community.docker.docker_image_pull module handles this natively)" }
+    - { "old": "headscale_config_oidc_expiry", "new": "headscale_config_node_expiry (Headscale >= 0.29 removed `oidc.expiry` in favor of the top-level `node.expiry`, which applies to all registration methods)" }
+    - { "old": "headscale_config_ephemeral_node_inactivity_timeout", "new": "headscale_config_node_ephemeral_inactivity_timeout (Headscale >= 0.29 moved this setting to `node.ephemeral.inactivity_timeout`)" }
+    - { "old": "headscale_config_randomize_client_port", "new": "<removed> (Headscale >= 0.29 removed the `randomize_client_port` server-config key; the toggle now lives in the ACL policy file as the top-level `randomizeClientPort` field, which this role does not manage)" }
 
 - name: Fail if required Headscale settings not defined
   ansible.builtin.fail:

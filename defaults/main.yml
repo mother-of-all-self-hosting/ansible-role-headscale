@@ -27,7 +27,7 @@ headscale_data_path: "{{ headscale_base_path }}/data"
 headscale_extra_records_path_enabled: false
 
 # renovate: datasource=docker depName=headscale/headscale
-headscale_version: v0.28.0
+headscale_version: v0.29.1
 
 headscale_uid: ""
 headscale_gid: ""
@@ -332,8 +332,19 @@ headscale_config_derp_server_update_frequency: 3h
 # Controls the `disable_check_updates` configuration value
 headscale_config_disable_check_updates: false
 
-# Controls the `ephemeral_node_inactivity_timeout` configuration value
-headscale_config_ephemeral_node_inactivity_timeout: 30m
+# Controls the `node.expiry` configuration value.
+# The default key expiry for non-tagged nodes, regardless of registration method
+# (auth key, CLI, web auth, OIDC). Tagged nodes are exempt and never expire.
+# Set to "0" for no default expiry (nodes never expire unless explicitly expired).
+# When OIDC is used with `headscale_config_oidc_use_expiry_from_token: true`,
+# this value is ignored for OIDC-authenticated nodes.
+# Example values: "0", "180d", "90d"
+# Note: in Headscale < 0.29 this lived under `oidc.expiry`.
+headscale_config_node_expiry: "0"
+
+# Controls the `node.ephemeral.inactivity_timeout` configuration value.
+# Time before an inactive ephemeral node is deleted.
+headscale_config_node_ephemeral_inactivity_timeout: 30m
 
 # Controls the `database.type` configuration value
 headscale_config_database_type: sqlite
@@ -451,14 +462,9 @@ headscale_config_oidc_client_secret: ""
 # Example: "${CREDENTIALS_DIRECTORY}/oidc_client_secret"
 headscale_config_oidc_client_secret_path: ""
 
-# Controls the `oidc.expiry` configuration value.
-# The amount of time a node is authenticated with OpenID until it expires and needs to reauthenticate.
-# Set to "0" for no expiry.
-# Example values: "180d", "90d", "0"
-headscale_config_oidc_expiry: "180d"
-
 # Controls the `oidc.use_expiry_from_token` configuration value.
-# When true, uses the expiry from the OIDC token instead of `oidc.expiry`.
+# When true, uses the expiry from the OIDC token instead of `headscale_config_node_expiry` (`node.expiry`).
+# Enabling this typically leads to frequent reauthentication and should only be used if you know what you are doing.
 headscale_config_oidc_use_expiry_from_token: false
 
 # Controls the `oidc.scope` configuration value.
@@ -525,12 +531,6 @@ headscale_config_oidc_pkce_method: S256
 # As there is currently no support for overriding the log server in headscale, this is
 # disabled by default. Enabling this will make your clients send logs to Tailscale Inc.
 headscale_config_logtail_enabled: false
-
-# Controls the `randomize_client_port` configuration value
-# Enabling this option makes devices prefer a random port for WireGuard traffic over the
-# default static port 41641. This option is intended as a workaround for some buggy
-# firewall devices. See https://tailscale.com/kb/1181/firewalls/ for more information.
-headscale_config_randomize_client_port: false
 
 # Controls the `taildrop.enabled` configuration value.
 # Taildrop is the file sharing feature of Tailscale, allowing nodes to send files to each other.
