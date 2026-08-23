@@ -1,0 +1,230 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Verify Headscale
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    # The CLI wrapper that this role installs. It runs `headscale` inside the
+    # container, talking to the running daemon over the UNIX socket, so every
+    # command below goes through both the wrapper and the daemon.
+    headscale_molecule_cli: "{{ headscale_base_path }}/bin/headscale"
+    headscale_molecule_api_url: "http://127.0.0.1:{{ headscale_molecule_api_bind_port }}"
+    headscale_molecule_metrics_url: "http://127.0.0.1:{{ headscale_molecule_metrics_bind_port }}"
+    headscale_molecule_user_name: molecule
+  tasks:
+    # Role defaults are not in scope here, but the version that Renovate bumps
+    # lives in them and is what the running Headscale is checked against below.
+    - name: Load the Headscale role defaults
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+        name: headscale_defaults
+
+    - name: Wait for Headscale service to become active (up to 180s)
+      ansible.builtin.systemd:
+        name: headscale.service
+      register: headscale_service
+      until: headscale_service.status.ActiveState == 'active'
+      retries: 36
+      delay: 5
+
+    - name: Assert Headscale service is active
+      ansible.builtin.assert:
+        that: headscale_service.status.ActiveState == 'active'
+        fail_msg: "headscale.service not active ({{ headscale_service.status.ActiveState }})"
+        success_msg: "headscale.service is active"
+
+    - name: Retrieve Headscale service log for debugging
+      when: headscale_debug_service_enabled | bool
+      ansible.builtin.command:
+        cmd: journalctl -xeu headscale.service
+      changed_when: false
+
+    # Headscale's own health endpoint. It only starts serving once the
+    # configuration has loaded, the database is open and the DERP map is
+    # non-empty - a Headscale that fails any of those exits instead of
+    # answering here.
+    - name: Wait for the Headscale health endpoint to pass (up to 180s)
+      ansible.builtin.uri:
+        url: "{{ headscale_molecule_api_url }}/health"
+        method: GET
+        return_content: true
+      register: headscale_health
+      until: headscale_health.status == 200
+      retries: 36
+      delay: 5
+
+    # Parsed from the raw body rather than relying on `.json`, because
+    # Headscale answers with an `application/health+json` content type.
+    - name: Assert the Headscale health endpoint reports a pass
+      ansible.builtin.assert:
+        that: (headscale_health.content | from_json).status == 'pass'
+        fail_msg: "Headscale health endpoint did not pass: {{ headscale_health.content }}"
+        success_msg: "Headscale health endpoint reports a pass"
+
+    - name: Query the running Headscale version
+      ansible.builtin.command:
+        argv:
+          - "{{ headscale_molecule_cli }}"
+          - version
+          - --output
+          - json
+      register: headscale_version_result
+      changed_when: false
+
+    # Headscale reports its version with a leading `v` (`v0.29.3`), the same
+    # way the role's version variable carries one. Compared as a prefix, with
+    # any leading `v` normalized away on both sides, so that this keeps holding
+    # if either side ever stops carrying one or starts carrying a build suffix.
+    - name: Assert the running Headscale is the version this role installs
+      vars:
+        headscale_molecule_reported_version: "{{ (headscale_version_result.stdout | from_json).version }}"
+      ansible.builtin.assert:
+        that: >-
+          (headscale_molecule_reported_version | regex_replace('^v', '')).startswith(
+            headscale_defaults.headscale_version | regex_replace('^v', '')
+          )
+        fail_msg: "Headscale reports {{ headscale_molecule_reported_version }}, expected {{ headscale_defaults.headscale_version }}"
+        success_msg: "Headscale reports {{ headscale_molecule_reported_version }}"
+
+    # A second listener, on a second published port, that only exists because
+    # the role templated `metrics_listen_addr` and asked for the port to be
+    # published. The metric asserted on is one of Headscale's own, so a
+    # different application answering here would not satisfy it.
+    - name: Query the Headscale metrics endpoint
+      ansible.builtin.uri:
+        url: "{{ headscale_molecule_metrics_url }}/metrics"
+        method: GET
+        return_content: true
+      register: headscale_metrics
+
+    - name: Assert Headscale exposes its own metrics
+      ansible.builtin.assert:
+        that: "'headscale_nodestore_nodes' in headscale_metrics.content"
+        fail_msg: "The metrics endpoint does not look like Headscale's"
+        success_msg: "Headscale exposes its own metrics"
+
+    # The embedded DERP server that the scenario turned on. Headscale only
+    # registers this handler when `derp.server.enabled` is true - with the
+    # role's default of false it answers 404 here - so this is a real check of
+    # `headscale_config_derp_server_enabled` reaching the running daemon.
+    - name: Probe the Headscale embedded DERP server
+      ansible.builtin.uri:
+        url: "{{ headscale_molecule_api_url }}/derp/probe"
+        method: GET
+        status_code: 200
+      register: headscale_derp_probe
+
+    - name: Assert the Headscale embedded DERP server answers
+      ansible.builtin.assert:
+        that: headscale_derp_probe.status == 200
+        fail_msg: "The embedded DERP server did not answer (HTTP {{ headscale_derp_probe.status }})"
+        success_msg: "The embedded DERP server answers"
+
+    # From here on the daemon is asked to actually do something: create a user,
+    # issue it a pre-auth key, and read both back. Each of these is a round
+    # trip through the CLI wrapper, the UNIX socket, the gRPC handlers and the
+    # SQLite database that the role mounted into the container.
+    - name: Create a Headscale user
+      ansible.builtin.command:
+        argv:
+          - "{{ headscale_molecule_cli }}"
+          - users
+          - create
+          - "{{ headscale_molecule_user_name }}"
+          - --output
+          - json
+      register: headscale_user_create
+      changed_when: headscale_user_create.rc == 0
+      # `molecule test` always starts from an empty database, but a standalone
+      # `molecule verify` re-run finds the user already there. Its absence is
+      # what the next task asserts on, so tolerating this does not weaken it.
+      failed_when: >-
+        headscale_user_create.rc != 0
+        and 'UNIQUE constraint failed: users.name' not in (headscale_user_create.stdout + headscale_user_create.stderr)
+
+    - name: List Headscale users
+      ansible.builtin.command:
+        argv:
+          - "{{ headscale_molecule_cli }}"
+          - users
+          - list
+          - --output
+          - json
+      register: headscale_users_list
+      changed_when: false
+
+    - name: Assert the created user is stored by Headscale
+      vars:
+        headscale_molecule_users: "{{ headscale_users_list.stdout | from_json | default([], true) }}"
+      ansible.builtin.assert:
+        that: headscale_molecule_user_name in (headscale_molecule_users | map(attribute='name') | list)
+        fail_msg: "Headscale does not know about the '{{ headscale_molecule_user_name }}' user: {{ headscale_users_list.stdout }}"
+        success_msg: "Headscale stored the '{{ headscale_molecule_user_name }}' user"
+
+    # `headscale preauthkeys` identifies users by their numeric ID rather than
+    # by name, so it has to be read back out of the listing.
+    - name: Determine the Headscale user identifier
+      ansible.builtin.set_fact:
+        headscale_molecule_user_id: "{{ (headscale_users_list.stdout | from_json | selectattr('name', 'equalto', headscale_molecule_user_name) | map(attribute='id') | first) | int }}"
+
+    - name: Create a Headscale pre-auth key for the user
+      ansible.builtin.command:
+        argv:
+          - "{{ headscale_molecule_cli }}"
+          - preauthkeys
+          - create
+          - --user
+          - "{{ headscale_molecule_user_id }}"
+          - --expiration
+          - 1h
+          - --output
+          - json
+      register: headscale_preauthkey_create
+      changed_when: headscale_preauthkey_create.rc == 0
+
+    - name: Assert Headscale issued a pre-auth key
+      vars:
+        headscale_molecule_preauthkey: "{{ headscale_preauthkey_create.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - headscale_molecule_preauthkey.key.startswith('hskey-auth-')
+          - headscale_molecule_preauthkey.user.name == headscale_molecule_user_name
+        fail_msg: "Headscale did not issue a usable pre-auth key: {{ headscale_preauthkey_create.stdout }}"
+        success_msg: "Headscale issued a pre-auth key for '{{ headscale_molecule_user_name }}'"
+
+    - name: List Headscale pre-auth keys
+      ansible.builtin.command:
+        argv:
+          - "{{ headscale_molecule_cli }}"
+          - preauthkeys
+          - list
+          - --output
+          - json
+      register: headscale_preauthkeys_list
+      changed_when: false
+
+    # Read back through a separate command, so that the key is known to have
+    # been persisted rather than merely reported by the call that made it.
+    # `preauthkeys list` masks the key material, hence the match on the ID.
+    - name: Assert the pre-auth key is stored by Headscale
+      vars:
+        headscale_molecule_created_key_id: "{{ (headscale_preauthkey_create.stdout | from_json).id | int }}"
+        headscale_molecule_stored_keys: "{{ headscale_preauthkeys_list.stdout | from_json | default([], true) | selectattr('user.name', 'equalto', headscale_molecule_user_name) | map(attribute='id') | map('int') | list }}"
+      ansible.builtin.assert:
+        that: (headscale_molecule_created_key_id | int) in (headscale_molecule_stored_keys | map('int') | list)
+        fail_msg: "Pre-auth key {{ headscale_molecule_created_key_id }} is not stored: {{ headscale_preauthkeys_list.stdout }}"
+        success_msg: "Headscale stored pre-auth key {{ headscale_molecule_created_key_id }}"
+
+    - name: Show Headscale verification summary
+      ansible.builtin.debug:
+        msg:
+          - "Headscale systemd: {{ headscale_service.status.ActiveState }}"
+          - "Headscale version: {{ (headscale_version_result.stdout | from_json).version }}"
+          - "Headscale health: {{ (headscale_health.content | from_json).status }}"
+          - "Headscale embedded DERP: HTTP {{ headscale_derp_probe.status }}"
+          - "Headscale users: {{ headscale_users_list.stdout | from_json | map(attribute='name') | list }}"
+          - "Headscale pre-auth keys: {{ headscale_preauthkeys_list.stdout | from_json | length }}"
