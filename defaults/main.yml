@@ -26,7 +26,7 @@ headscale_data_path: "{{ headscale_base_path }}/data"
 # - https://github.com/tale/headplane/blob/6d5e44f585469dd147b8c1dcc57f78fe9f7b0e72/config.example.yaml#L59
 headscale_extra_records_path_enabled: false
 
-# renovate: datasource=docker depName=headscale/headscale
+# renovate: datasource=docker depName=headscale/headscale versioning=semver
 headscale_version: v0.29.3
 
 headscale_uid: ""
