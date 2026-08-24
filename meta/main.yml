@@ -3,7 +3,7 @@ galaxy_info:
   author: etke.cc
   company: etke.cc
   role_name: headscale
-  namespace: etkecc
+  namespace: mash
   description: Headscale
   platforms:
     - name: Debian
