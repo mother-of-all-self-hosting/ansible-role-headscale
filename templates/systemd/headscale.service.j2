@@ -1,4 +1,5 @@
 {#
+SPDX-FileCopyrightText: 2026 MASH project contributors
 SPDX-FileCopyrightText: 2024 Nikita Chernyi
 SPDX-FileCopyrightText: 2025 Slavi Pantaleev
 SPDX-FileCopyrightText: 2025 Suguru Hirahara
@@ -19,6 +20,7 @@ DefaultDependencies=no
 
 [Service]
 Type=simple
+TimeoutStartSec={{ headscale_systemd_service_timeout_start_seconds | int }}s
 Environment="HOME={{ devture_systemd_docker_base_systemd_unit_home_path }}"
 ExecStartPre={{ devture_systemd_docker_base_host_command_sh }} -c '{{ headscale_container_cleanup_command | trim | replace("\n", " ") }}'
 
@@ -59,8 +61,10 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} network conne
 
 ExecStart={{ devture_systemd_docker_base_host_command_docker }} start --attach {{ headscale_identifier }}
 
+ExecStartPost={{ devture_systemd_docker_base_host_command_sh }} -c 'attempt=1; next_log=1; while true; do if {{ devture_systemd_docker_base_host_command_docker }} exec {{ headscale_identifier }} headscale health >/dev/null 2>&1; then if kill -0 "$MAINPID" 2>/dev/null; then echo "Headscale systemd health check: ready after $attempt attempt(s)"; exit 0; fi; echo "Headscale systemd health check: main process exited before becoming ready" >&2; exit 1; fi; if ! kill -0 "$MAINPID" 2>/dev/null; then echo "Headscale systemd health check: main process exited before becoming ready" >&2; exit 1; fi; if [ "$attempt" -eq "$next_log" ]; then echo "Headscale systemd health check: attempt $attempt failed; still waiting" >&2; next_log=$((next_log + 5)); fi; attempt=$((attempt + 1)); sleep 1; done'
+
 ExecStop=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} stop -t {{ devture_systemd_docker_base_container_stop_grace_time_seconds }} {{ headscale_identifier }} 2>/dev/null || true'
-ExecStop=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} rm {{ headscale_identifier }} 2>/dev/null || true'
+ExecStopPost=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} rm -f {{ headscale_identifier }} >/dev/null 2>&1 || true'
 
 Restart=always
 RestartSec=30

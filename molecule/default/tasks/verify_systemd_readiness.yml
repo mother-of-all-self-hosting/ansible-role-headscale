@@ -1,0 +1,423 @@
+# SPDX-FileCopyrightText: 2026 MASH project contributors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Read rendered Headscale systemd unit
+  ansible.builtin.slurp:
+    src: /etc/systemd/system/headscale.service
+  register: headscale_molecule_systemd_unit_slurp
+
+- name: Assert the rendered Headscale systemd readiness contract
+  vars:
+    headscale_molecule_systemd_unit: "{{ headscale_molecule_systemd_unit_slurp.content | b64decode }}"
+  ansible.builtin.assert:
+    that:
+      - "'TimeoutStartSec=180s' in headscale_molecule_systemd_unit"
+      - "'ExecStartPost=' in headscale_molecule_systemd_unit"
+      - "'headscale-molecule-docker exec headscale headscale health' in headscale_molecule_systemd_unit"
+      - "'ExecStopPost=' in headscale_molecule_systemd_unit"
+      - "'headscale-molecule-docker rm -f headscale' in headscale_molecule_systemd_unit"
+      - "'Restart=always' in headscale_molecule_systemd_unit"
+      - "'RestartSec=30' in headscale_molecule_systemd_unit"
+      - "'kill -0 \"$MAINPID\"' in headscale_molecule_systemd_unit"
+      - "'main process exited before becoming ready' in headscale_molecule_systemd_unit"
+      - "'.well-known/openid-configuration' not in headscale_molecule_systemd_unit"
+      - "'curl ' not in headscale_molecule_systemd_unit"
+      - "'wget ' not in headscale_molecule_systemd_unit"
+    fail_msg: "The rendered Headscale unit does not implement the required readiness contract"
+    success_msg: "The rendered Headscale unit implements the required readiness contract"
+
+- name: Exercise Headscale startup and shutdown lifecycle
+  block:
+    - name: Stop Headscale before delayed-ready testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: stopped
+
+    - name: Block Headscale health for delayed-ready startup
+      ansible.builtin.copy:
+        dest: "{{ headscale_molecule_health_mode_path }}"
+        mode: "0644"
+        content: "block\n"
+
+    - name: Start Headscale asynchronously with health blocked
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: started
+      async: 210
+      poll: 0
+      register: headscale_molecule_delayed_start_job
+
+    - name: Wait for Headscale to enter start-post
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveState
+          - --property=SubState
+          - --property=Result
+      register: headscale_molecule_delayed_start_state
+      changed_when: false
+      until: >-
+        'ActiveState=activating' in headscale_molecule_delayed_start_state.stdout
+        and 'SubState=start-post' in headscale_molecule_delayed_start_state.stdout
+      retries: 30
+      delay: 1
+
+    - name: Keep Headscale health blocked briefly
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Read Headscale state while health remains blocked
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveState
+          - --property=SubState
+      register: headscale_molecule_still_blocked_state
+      changed_when: false
+
+    - name: Assert Headscale remains activating while native health is blocked
+      ansible.builtin.assert:
+        that:
+          - "'ActiveState=activating' in headscale_molecule_still_blocked_state.stdout"
+          - "'SubState=start-post' in headscale_molecule_still_blocked_state.stdout"
+        fail_msg: "Headscale did not remain in start-post while health was blocked"
+        success_msg: "Headscale remains activating until native health succeeds"
+
+    - name: Allow native Headscale health to succeed
+      ansible.builtin.copy:
+        dest: "{{ headscale_molecule_health_mode_path }}"
+        mode: "0644"
+        content: "pass\n"
+
+    - name: Wait for delayed-ready Headscale startup to finish
+      ansible.builtin.async_status:
+        jid: "{{ headscale_molecule_delayed_start_job.ansible_job_id }}"
+      register: headscale_molecule_delayed_start_result
+      until: headscale_molecule_delayed_start_result.finished
+      retries: 30
+      delay: 1
+
+    - name: Read Headscale state after native health succeeds
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveState
+          - --property=SubState
+          - --property=Result
+      register: headscale_molecule_ready_state
+      changed_when: false
+
+    - name: Assert Headscale becomes active only after native health succeeds
+      ansible.builtin.assert:
+        that:
+          - "'ActiveState=active' in headscale_molecule_ready_state.stdout"
+          - "'SubState=running' in headscale_molecule_ready_state.stdout"
+          - "'Result=success' in headscale_molecule_ready_state.stdout"
+        fail_msg: "Headscale did not become truthfully active after health succeeded"
+        success_msg: "Headscale becomes active after native health succeeds"
+
+    - name: Stop Headscale before bounded unhealthy-start testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: stopped
+
+    - name: Ensure the test-only systemd override directory exists
+      ansible.builtin.file:
+        path: /run/systemd/system/headscale.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Install a short test-only startup timeout
+      ansible.builtin.copy:
+        dest: /run/systemd/system/headscale.service.d/50-molecule-timeout.conf
+        mode: "0644"
+        content: |
+          [Service]
+          TimeoutStartSec=5s
+
+    - name: Reload systemd for the short test-only startup timeout
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Block Headscale health for bounded unhealthy-start testing
+      ansible.builtin.copy:
+        dest: "{{ headscale_molecule_health_mode_path }}"
+        mode: "0644"
+        content: "block\n"
+
+    - name: Record the active-entry timestamp before bounded unhealthy startup
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveEnterTimestampMonotonic
+          - --value
+      register: headscale_molecule_bounded_active_timestamp_before
+      changed_when: false
+
+    - name: Start Headscale asynchronously for bounded unhealthy-start testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: started
+      async: 20
+      poll: 0
+      register: headscale_molecule_bounded_start_job
+
+    - name: Wait for bounded unhealthy startup to enter start-post
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveState
+          - --property=SubState
+      register: headscale_molecule_bounded_starting_state
+      changed_when: false
+      until: >-
+        'ActiveState=activating' in headscale_molecule_bounded_starting_state.stdout
+        and 'SubState=start-post' in headscale_molecule_bounded_starting_state.stdout
+      retries: 15
+      delay: 1
+
+    - name: Wait for bounded unhealthy startup to fail
+      ansible.builtin.async_status:
+        jid: "{{ headscale_molecule_bounded_start_job.ansible_job_id }}"
+      register: headscale_molecule_bounded_start_result
+      until: headscale_molecule_bounded_start_result.finished
+      retries: 20
+      delay: 1
+      failed_when: false
+
+    - name: Read Headscale state after bounded unhealthy startup
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveState
+          - --property=SubState
+          - --property=Result
+          - --property=ActiveEnterTimestampMonotonic
+      register: headscale_molecule_bounded_failed_state
+      changed_when: false
+
+    - name: Wait for failed-start cleanup to remove the Headscale container
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/docker
+          - container
+          - inspect
+          - headscale
+      register: headscale_molecule_bounded_failed_container
+      changed_when: false
+      failed_when: false
+      until: headscale_molecule_bounded_failed_container.rc != 0
+      retries: 15
+      delay: 1
+
+    - name: Assert bounded unhealthy startup never becomes active and cleans up
+      ansible.builtin.assert:
+        that:
+          - "'ActiveState=active' not in headscale_molecule_bounded_failed_state.stdout"
+          - "'Result=timeout' in headscale_molecule_bounded_failed_state.stdout"
+          - >-
+            ('ActiveEnterTimestampMonotonic=' ~ headscale_molecule_bounded_active_timestamp_before.stdout)
+            in headscale_molecule_bounded_failed_state.stdout
+          - headscale_molecule_bounded_failed_container.rc != 0
+        fail_msg: "Bounded unhealthy startup became active or left its container behind"
+        success_msg: "Bounded unhealthy startup fails without becoming active and cleans up"
+
+    - name: Stop Headscale to cancel its scheduled restart
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: stopped
+
+    - name: Remove the short test-only startup timeout
+      ansible.builtin.file:
+        path: /run/systemd/system/headscale.service.d/50-molecule-timeout.conf
+        state: absent
+
+    - name: Reload systemd after removing the test-only startup timeout
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Record the active-entry timestamp before main-process-exit startup
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveEnterTimestampMonotonic
+          - --value
+      register: headscale_molecule_exit_active_timestamp_before
+      changed_when: false
+
+    - name: Start Headscale asynchronously for main-process-exit testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: started
+      async: 210
+      poll: 0
+      register: headscale_molecule_exit_during_start_job
+
+    - name: Wait for main-process-exit startup to enter start-post
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveState
+          - --property=SubState
+      register: headscale_molecule_exit_during_starting_state
+      changed_when: false
+      until: >-
+        'ActiveState=activating' in headscale_molecule_exit_during_starting_state.stdout
+        and 'SubState=start-post' in headscale_molecule_exit_during_starting_state.stdout
+      retries: 30
+      delay: 1
+
+    - name: Kill the Headscale container while start-post is running
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/docker
+          - kill
+          - headscale
+      changed_when: true
+
+    - name: Wait for startup to notice the main-process exit
+      ansible.builtin.async_status:
+        jid: "{{ headscale_molecule_exit_during_start_job.ansible_job_id }}"
+      register: headscale_molecule_exit_during_start_result
+      until: headscale_molecule_exit_during_start_result.finished
+      retries: 20
+      delay: 1
+      failed_when: false
+
+    - name: Wait for Headscale to schedule its automatic restart
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - show
+          - headscale.service
+          - --property=ActiveState
+          - --property=SubState
+          - --property=Result
+          - --property=ActiveEnterTimestampMonotonic
+      register: headscale_molecule_exit_during_start_state
+      changed_when: false
+      until: "'SubState=auto-restart' in headscale_molecule_exit_during_start_state.stdout"
+      retries: 15
+      delay: 1
+
+    - name: Check cleanup after the main process exits during start-post
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/docker
+          - container
+          - inspect
+          - headscale
+      register: headscale_molecule_exit_during_start_container
+      changed_when: false
+      failed_when: false
+
+    - name: Assert main-process exit cannot become active and schedules restart
+      ansible.builtin.assert:
+        that:
+          - "'ActiveState=active' not in headscale_molecule_exit_during_start_state.stdout"
+          - "'SubState=auto-restart' in headscale_molecule_exit_during_start_state.stdout"
+          - >-
+            ('ActiveEnterTimestampMonotonic=' ~ headscale_molecule_exit_active_timestamp_before.stdout)
+            in headscale_molecule_exit_during_start_state.stdout
+          - headscale_molecule_exit_during_start_container.rc != 0
+        fail_msg: "Main-process exit during start-post became active, failed cleanup, or lost restart semantics"
+        success_msg: "Main-process exit during start-post stays non-active, cleans up, and schedules restart"
+
+    - name: Stop Headscale to cancel the main-process-exit restart
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: stopped
+
+    - name: Allow native Headscale health for final normal-stop testing
+      ansible.builtin.copy:
+        dest: "{{ headscale_molecule_health_mode_path }}"
+        mode: "0644"
+        content: "pass\n"
+
+    - name: Start Headscale for final normal-stop testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: started
+
+    - name: Stop Headscale normally after readiness testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: stopped
+
+    - name: Stop Headscale normally a second time after readiness testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: stopped
+
+    - name: Check final normal-stop cleanup
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/docker
+          - container
+          - inspect
+          - headscale
+      register: headscale_molecule_final_stop_container
+      changed_when: false
+      failed_when: false
+
+    - name: Read Headscale journal diagnostics from readiness testing
+      ansible.builtin.command:
+        argv:
+          - journalctl
+          - --unit=headscale.service
+          - --no-pager
+      register: headscale_molecule_readiness_journal
+      changed_when: false
+
+    - name: Assert normal stop cleanup and readiness journal diagnostics
+      ansible.builtin.assert:
+        that:
+          - headscale_molecule_final_stop_container.rc != 0
+          - "'Headscale systemd health check: attempt 1 failed; still waiting' in headscale_molecule_readiness_journal.stdout"
+          - "'Headscale systemd health check: ready after' in headscale_molecule_readiness_journal.stdout"
+        fail_msg: "Normal stop cleanup or readiness journal diagnostics are incomplete"
+        success_msg: "Normal stop is clean and readiness diagnostics are present"
+  always:
+    - name: Stop Headscale after readiness lifecycle testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: stopped
+      failed_when: false
+
+    - name: Remove the test-only startup-timeout override after readiness testing
+      ansible.builtin.file:
+        path: /run/systemd/system/headscale.service.d/50-molecule-timeout.conf
+        state: absent
+
+    - name: Allow native Headscale health after readiness testing
+      ansible.builtin.copy:
+        dest: "{{ headscale_molecule_health_mode_path }}"
+        mode: "0644"
+        content: "pass\n"
+
+    - name: Reload systemd after readiness lifecycle testing
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Restore a healthy Headscale service after readiness lifecycle testing
+      ansible.builtin.systemd_service:
+        name: headscale.service
+        state: started

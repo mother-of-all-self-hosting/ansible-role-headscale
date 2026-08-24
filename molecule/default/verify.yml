@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 MASH project contributors
 # SPDX-FileCopyrightText: 2026 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2026 spatterlight
 # SPDX-FileCopyrightText: 2026 Suguru Hirahara
@@ -220,6 +221,9 @@
         that: (headscale_molecule_created_key_id | int) in (headscale_molecule_stored_keys | map('int') | list)
         fail_msg: "Pre-auth key {{ headscale_molecule_created_key_id }} is not stored: {{ headscale_preauthkeys_list.stdout }}"
         success_msg: "Headscale stored pre-auth key {{ headscale_molecule_created_key_id }}"
+
+    - name: Verify Headscale systemd readiness lifecycle
+      ansible.builtin.include_tasks: tasks/verify_systemd_readiness.yml
 
     - name: Show Headscale verification summary
       ansible.builtin.debug:

@@ -31,6 +31,8 @@ provisioner:
       all:
         # Helper variables
         headscale_debug_service_enabled: false
+        headscale_molecule_docker_wrapper: /usr/local/bin/headscale-molecule-docker
+        headscale_molecule_health_mode_path: /tmp/headscale-molecule-health-mode
 
         # The port on the test host that Headscale's HTTP API is published on.
         # The role does not publish it by default (Headscale is meant to be
@@ -46,6 +48,7 @@ provisioner:
         headscale_gid: 1000
         headscale_hostname: headscale.molecule.test
         headscale_container_labels_traefik_enabled: false
+        devture_systemd_docker_base_host_command_docker: "{{ headscale_molecule_docker_wrapper }}"
 
         # Pinned to a literal value, because `verify.yml` invokes the
         # `headscale` CLI wrapper that this role installs underneath it, and

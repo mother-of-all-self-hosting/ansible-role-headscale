@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 MASH project contributors
 # SPDX-FileCopyrightText: 2026 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2026 spatterlight
 # SPDX-FileCopyrightText: 2026 Suguru Hirahara
@@ -28,6 +29,35 @@
       vars:
         docker_daemon_options:
           storage-driver: vfs
+
+    - name: Ensure Headscale Molecule Docker health-gate wrapper is installed
+      ansible.builtin.copy:
+        dest: "{{ headscale_molecule_docker_wrapper }}"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          # SPDX-FileCopyrightText: 2026 MASH project contributors
+          # SPDX-License-Identifier: AGPL-3.0-or-later
+
+          set -eu
+
+          if [ "$#" -eq 4 ] && [ "$1" = "exec" ] && [ "$2" = "headscale" ] && [ "$3" = "headscale" ] && [ "$4" = "health" ]; then
+            health_mode=pass
+            if [ -f "{{ headscale_molecule_health_mode_path }}" ]; then
+              IFS= read -r health_mode < "{{ headscale_molecule_health_mode_path }}"
+            fi
+            if [ "$health_mode" = "block" ]; then
+              exit 1
+            fi
+          fi
+
+          exec /usr/bin/docker "$@"
+
+    - name: Allow native Headscale health checks by default in Molecule
+      ansible.builtin.copy:
+        dest: "{{ headscale_molecule_health_mode_path }}"
+        mode: "0644"
+        content: "pass\n"
 
     # Nothing else needs seeding here: unlike applications that own their own
     # configuration file, this role templates Headscale's `config.yaml` in

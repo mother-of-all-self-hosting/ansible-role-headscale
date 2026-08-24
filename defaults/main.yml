@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2023 - 2024 Nikita Chernyi
 # SPDX-FileCopyrightText: 2023 - 2025 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2024 Sergio Durigan Junior
-# SPDX-FileCopyrightText: 2025 MASH project contributors
+# SPDX-FileCopyrightText: 2025 - 2026 MASH project contributors
 # SPDX-FileCopyrightText: 2025 Suguru Hirahara
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
@@ -226,6 +226,9 @@ headscale_systemd_wanted_services_list: "{{ headscale_systemd_wanted_services_li
 headscale_systemd_wanted_services_list_default: []
 headscale_systemd_wanted_services_list_auto: []
 headscale_systemd_wanted_services_list_custom: []
+
+# Controls how long systemd waits for Headscale to complete startup and pass its native health check.
+headscale_systemd_service_timeout_start_seconds: 180
 
 # Controls how long to wait for the container to stop gracefully before killing it.
 headscale_container_stop_grace_time_seconds: "{{ devture_systemd_docker_base_container_stop_grace_time_seconds }}"
