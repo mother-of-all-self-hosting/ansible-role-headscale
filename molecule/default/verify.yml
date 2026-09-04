@@ -90,7 +90,7 @@
           (headscale_molecule_reported_version | regex_replace('^v', '')).startswith(
             headscale_defaults.headscale_version | regex_replace('^v', '')
           )
-        fail_msg: "Headscale reports {{ headscale_molecule_reported_version }}, expected {{ headscale_defaults.headscale_version }}"
+        fail_msg: "Headscale reports {{ headscale_molecule_reported_version | default('none') }}, expected {{ headscale_defaults.headscale_version }}"
         success_msg: "Headscale reports {{ headscale_molecule_reported_version }}"
 
     # A second listener, on a second published port, that only exists because
