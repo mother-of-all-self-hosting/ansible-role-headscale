@@ -222,7 +222,7 @@
         fail_msg: "Pre-auth key {{ headscale_molecule_created_key_id }} is not stored: {{ headscale_preauthkeys_list.stdout }}"
         success_msg: "Headscale stored pre-auth key {{ headscale_molecule_created_key_id }}"
 
-    - name: Show Headscale verification summary
+    - name: Show the Headscale verification summary
       ansible.builtin.debug:
         msg:
           - "Headscale systemd: {{ headscale_service.status.ActiveState }}"
