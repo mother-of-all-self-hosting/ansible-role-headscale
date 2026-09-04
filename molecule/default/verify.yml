@@ -18,9 +18,10 @@
     headscale_molecule_metrics_url: "http://127.0.0.1:{{ headscale_molecule_metrics_bind_port }}"
     headscale_molecule_user_name: molecule
   tasks:
-    # Role defaults are not in scope here, but the version that Renovate bumps
-    # lives in them and is what the running Headscale is checked against below.
-    - name: Load the Headscale role defaults
+    # The role is not included in this playbook, so its defaults are not in
+    # scope. Reading defaults/main.yml directly ties the version assertion
+    # below.
+    - name: Load the role defaults
       ansible.builtin.include_vars:
         file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
         name: headscale_defaults
