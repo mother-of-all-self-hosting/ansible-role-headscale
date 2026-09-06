@@ -80,8 +80,7 @@
 
     # Headscale reports its version with a leading `v` (`v0.107.79`), the
     # same way the role's version variable carries one. Any leading `v` is normalized
-    # away on both sides, so that this keeps holding if either side ever stops
-    # carrying one.
+    # away on both sides, so that this keeps holding if either side ever changes.
     - name: Assert the running Headscale is the version this role installs
       ansible.builtin.assert:
         that: ((headscale_version_result.stdout | from_json).version | regex_replace('^v', '')) == (headscale_defaults.headscale_version | regex_replace('^v', ''))
