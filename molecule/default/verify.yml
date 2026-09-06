@@ -78,20 +78,15 @@
       register: headscale_version_result
       changed_when: false
 
-    # Headscale reports its version with a leading `v` (`v0.29.3`), the same
-    # way the role's version variable carries one. Compared as a prefix, with
-    # any leading `v` normalized away on both sides, so that this keeps holding
-    # if either side ever stops carrying one or starts carrying a build suffix.
+    # Headscale reports its version with a leading `v` (`v0.107.79`), the
+    # same way the role's version variable carries one. Any leading `v` is normalized
+    # away on both sides, so that this keeps holding if either side ever stops
+    # carrying one.
     - name: Assert the running Headscale is the version this role installs
-      vars:
-        headscale_molecule_reported_version: "{{ (headscale_version_result.stdout | from_json).version }}"
       ansible.builtin.assert:
-        that: >-
-          (headscale_molecule_reported_version | regex_replace('^v', '')).startswith(
-            headscale_defaults.headscale_version | regex_replace('^v', '')
-          )
-        fail_msg: "Headscale reports {{ headscale_molecule_reported_version | default('none') }}, expected {{ headscale_defaults.headscale_version }}"
-        success_msg: "Headscale reports {{ headscale_molecule_reported_version }}"
+        that: ((headscale_version_result.stdout | from_json).version | regex_replace('^v', '')) == (headscale_defaults.headscale_version | regex_replace('^v', ''))
+        fail_msg: "Headscale reports {{ (headscale_version_result.stdout | from_json).version | default('none') }}, expected {{ headscale_defaults.headscale_version }}"
+        success_msg: "Headscale reports {{ (headscale_version_result.stdout | from_json).version }}"
 
     # A second listener, on a second published port, that only exists because
     # the role templated `metrics_listen_addr` and asked for the port to be
