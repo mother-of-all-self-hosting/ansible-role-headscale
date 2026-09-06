@@ -68,7 +68,7 @@
         fail_msg: "Headscale health endpoint did not pass: {{ headscale_health.content }}"
         success_msg: "Headscale health endpoint reports a pass"
 
-    - name: Query the running Headscale version
+    - name: Query the version of the running Headscale
       ansible.builtin.command:
         argv:
           - "{{ headscale_molecule_cli }}"
