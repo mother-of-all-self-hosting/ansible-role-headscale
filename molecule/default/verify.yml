@@ -18,6 +18,8 @@
     headscale_molecule_metrics_url: "http://127.0.0.1:{{ headscale_molecule_metrics_bind_port }}"
     headscale_molecule_user_name: molecule
   tasks:
+    - name: Verify that Headscale works
+      block:
     # The role is not included in this playbook, so its defaults are not in
     # scope. Reading defaults/main.yml directly ties the version assertion
     # below.
@@ -231,3 +233,19 @@
           - "Headscale embedded DERP: HTTP {{ headscale_derp_probe.status }}"
           - "Headscale users: {{ headscale_users_list.stdout | from_json | map(attribute='name') | list }}"
           - "Headscale pre-auth keys: {{ headscale_preauthkeys_list.stdout | from_json | length }}"
+
+      rescue:
+        # Whatever went wrong, the reason is almost always in the systemd service log.
+        - name: Retrieve the Headscale systemd service log
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=headscale.service
+          register: headscale_service_log
+          changed_when: false
+
+        - name: Show the Headscale systemd service log
+          ansible.builtin.debug:
+            var: headscale_service_log.stdout_lines
+
+        - name: Fail because verification did not pass
+          ansible.builtin.fail:
+            msg: "Headscale verification failed. The systemd service log is printed above."
