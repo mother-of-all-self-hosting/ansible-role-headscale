@@ -9,6 +9,7 @@
   hosts: all
   become: true
   gather_facts: false
+
   vars:
     # The CLI wrapper that this role installs. It runs `headscale` inside the
     # container, talking to the running daemon over the UNIX socket, so every
@@ -17,6 +18,10 @@
     headscale_molecule_api_url: "http://127.0.0.1:{{ headscale_molecule_api_bind_port }}"
     headscale_molecule_metrics_url: "http://127.0.0.1:{{ headscale_molecule_metrics_bind_port }}"
     headscale_molecule_user_name: molecule
+
+    headscale_verify_units:
+      - headscale.service
+
   tasks:
     - name: Verify that Headscale works
       block:
@@ -28,13 +33,14 @@
             file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
             name: headscale_defaults
 
-        - name: Wait for the Headscale systemd service to become active (up to 180s)
+        - name: Wait for the Headscale systemd services to become active (up to 180s each)
           ansible.builtin.systemd_service:
-            name: headscale.service
-          register: headscale_service
-          until: headscale_service.status.ActiveState == 'active'
+            name: "{{ item }}"
+          register: headscale_services
+          until: headscale_services.status.ActiveState == 'active'
           retries: 36
           delay: 5
+          loop: "{{ headscale_verify_units }}"
           # So that giving up is reported by the assertion below rather than as a
           # wall of systemd unit properties.
           failed_when: false
@@ -42,17 +48,20 @@
         # `Restart=always` in the systemd unit means that even a container which crashes
         # and gets restarted reads as active here, so this is a precondition rather than
         # a result.
-        - name: Assert the Headscale systemd service is active
+        - name: Assert the Headscale systemd services are active
           ansible.builtin.assert:
-            that: headscale_service.status.ActiveState == 'active'
-            fail_msg: "headscale.service is not active ({{ headscale_service.status.ActiveState }})"
-            success_msg: "headscale.service is active"
+            that: headscale_services.results | map(attribute='status.ActiveState') | unique | list == ['active']
+            fail_msg: >-
+              Not every service is active:
+              {{ dict(headscale_verify_units | zip(headscale_services.results | map(attribute='status.ActiveState'))) }}
+            success_msg: "Every systemd service is active"
 
-        - name: Retrieve the Headscale systemd service log for debugging
+        - name: Retrieve the Headscale systemd services log for debugging
           when: headscale_debug_service_enabled | bool
           ansible.builtin.command:
-            cmd: journalctl --no-pager --output=cat --unit=headscale.service
+            cmd: "journalctl --no-pager --output=cat --unit={{ item }}"
           changed_when: false
+          loop: "{{ headscale_verify_units }}"
 
         # Headscale's own health endpoint. It only starts serving once the
         # configuration has loaded, the database is open and the DERP map is
@@ -227,7 +236,7 @@
         - name: Show the Headscale verification summary
           ansible.builtin.debug:
             msg:
-              - "Headscale systemd: {{ headscale_service.status.ActiveState }}"
+              - "Headscale systemd: {% for unit, state in headscale_verify_units | zip(headscale_services.results | map(attribute='status.ActiveState')) %}{{ unit }} ({{ state }}){% if not loop.last %}, {% endif %}{% endfor %}"
               - "Headscale version: {{ (headscale_version_result.stdout | from_json).version }}"
               - "Headscale health: {{ (headscale_health.content | from_json).status }}"
               - "Headscale embedded DERP: HTTP {{ headscale_derp_probe.status }}"
