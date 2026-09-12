@@ -87,11 +87,7 @@
 
         - name: Query the version of the running Headscale
           ansible.builtin.command:
-            argv:
-              - "{{ headscale_molecule_cli }}"
-              - version
-              - --output
-              - json
+            cmd: "{{ headscale_molecule_cli }} version --output json"
           register: headscale_version_result
           changed_when: false
 
@@ -144,13 +140,10 @@
         # SQLite database that the role mounted into the container.
         - name: Create a Headscale user
           ansible.builtin.command:
-            argv:
-              - "{{ headscale_molecule_cli }}"
-              - users
-              - create
-              - "{{ headscale_molecule_user_name }}"
-              - --output
-              - json
+            cmd: >-
+              {{ headscale_molecule_cli }}
+              users create {{ headscale_molecule_user_name }}
+              --output json
           register: headscale_user_create
           changed_when: headscale_user_create.rc == 0
           # `molecule test` always starts from an empty database, but a standalone
@@ -162,12 +155,10 @@
 
         - name: List Headscale users
           ansible.builtin.command:
-            argv:
-              - "{{ headscale_molecule_cli }}"
-              - users
-              - list
-              - --output
-              - json
+            cmd: >-
+              {{ headscale_molecule_cli }}
+              users list
+              --output json
           register: headscale_users_list
           changed_when: false
 
@@ -187,16 +178,12 @@
 
         - name: Create a Headscale pre-auth key for the user
           ansible.builtin.command:
-            argv:
-              - "{{ headscale_molecule_cli }}"
-              - preauthkeys
-              - create
-              - --user
-              - "{{ headscale_molecule_user_id }}"
-              - --expiration
-              - 1h
-              - --output
-              - json
+            cmd: >-
+              {{ headscale_molecule_cli }}
+              preauthkeys create
+              --user {{ headscale_molecule_user_id }}
+              --expiration 1h
+              --output json
           register: headscale_preauthkey_create
           changed_when: headscale_preauthkey_create.rc == 0
 
@@ -212,12 +199,10 @@
 
         - name: List Headscale pre-auth keys
           ansible.builtin.command:
-            argv:
-              - "{{ headscale_molecule_cli }}"
-              - preauthkeys
-              - list
-              - --output
-              - json
+            cmd: >-
+              {{ headscale_molecule_cli }}
+              preauthkeys list
+              --output json
           register: headscale_preauthkeys_list
           changed_when: false
 
