@@ -76,14 +76,17 @@
           until: headscale_health.status == 200
           retries: 36
           delay: 5
+          # So that giving up is reported by the assertion below rather than as a
+          # wall of systemd unit properties.
+          failed_when: false
 
         # Parsed from the raw body rather than relying on `.json`, because
         # Headscale answers with an `application/health+json` content type.
-        - name: Assert the Headscale health endpoint reports a pass
+        - name: Assert Headscale reports itself healthy
           ansible.builtin.assert:
             that: (headscale_health.content | from_json).status == 'pass'
-            fail_msg: "Headscale health endpoint did not pass: {{ headscale_health.content }}"
-            success_msg: "Headscale health endpoint reports a pass"
+            fail_msg: "Headscale did not report itself healthy: {{ headscale_health.content | default('no response') }}"
+            success_msg: "Headscale reports itself healthy"
 
         - name: Query the version of the running Headscale
           ansible.builtin.command:
