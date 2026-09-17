@@ -56,6 +56,89 @@
               {{ dict(headscale_verify_units | zip(headscale_services.results | map(attribute='status.ActiveState'))) }}
             success_msg: "Every systemd service is active"
 
+        - name: Inspect the Headscale container
+          ansible.builtin.command:
+            argv:
+              - docker
+              - container
+              - inspect
+              - "{{ headscale_defaults.headscale_identifier }}"
+          register: headscale_container_inspect
+          changed_when: false
+
+        - name: Assert configured TCP and UDP ports are published
+          vars:
+            headscale_molecule_published_ports: >-
+              {{ (headscale_container_inspect.stdout | from_json)[0].NetworkSettings.Ports }}
+          ansible.builtin.assert:
+            that:
+              - >-
+                headscale_molecule_published_ports.get(item.container_port)
+                == [{'HostIp': '127.0.0.1', 'HostPort': item.host_port | string}]
+            fail_msg: "Headscale container port publication does not match the configured listener contract"
+            success_msg: "Headscale publishes {{ item.container_port }} on the configured host address and port"
+          loop:
+            - container_port: "{{ headscale_container_http_api_port }}/tcp"
+              host_port: "{{ headscale_molecule_api_bind_port }}"
+            - container_port: "{{ headscale_container_http_metrics_port }}/tcp"
+              host_port: "{{ headscale_molecule_metrics_bind_port }}"
+            - container_port: "{{ headscale_container_grpc_port }}/tcp"
+              host_port: "{{ headscale_molecule_grpc_bind_port }}"
+            - container_port: "{{ headscale_container_derp_stun_port }}/udp"
+              host_port: "{{ headscale_molecule_derp_stun_bind_port }}"
+          loop_control:
+            label: "{{ item.container_port }}"
+
+        - name: Assert embedded DERP STUN bind port is empty by default
+          ansible.builtin.assert:
+            that: headscale_defaults.headscale_container_derp_stun_bind_port == ''
+            fail_msg: "Embedded DERP STUN bind port should be empty by default"
+            success_msg: "Embedded DERP STUN bind port is empty by default"
+
+        - name: Exercise embedded DERP STUN publication validation
+          vars:
+            headscale_identifier: headscale
+            headscale_uid: 1000
+            headscale_gid: 1000
+            headscale_hostname: headscale.molecule.test
+            headscale_path_prefix: /
+            headscale_container_network: headscale
+            headscale_container_labels_traefik_enabled: false
+            headscale_config_database_type: sqlite
+            headscale_config_log_format: text
+            headscale_config_dns_magic_dns: true
+            headscale_config_dns_base_domain: magic.headscale.molecule.test
+            headscale_config_oidc_enabled: false
+          block:
+            # Existing deployments could already enable the embedded DERP server
+            # and choose a non-default listener without publishing it through
+            # Docker. The new opt-in settings must not invalidate that setup.
+            - name: Validate a custom unpublished embedded DERP STUN listener
+              ansible.builtin.include_tasks: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/tasks/validate_config.yml"
+              vars:
+                headscale_config_derp_server_enabled: true
+                headscale_config_derp_server_stun_listen_addr: "0.0.0.0:13480"
+                headscale_container_derp_stun_bind_port: ""
+                headscale_container_derp_stun_port: 3478
+
+            - name: Reject a malformed published embedded DERP STUN listener
+              block:
+                - name: Validate a malformed published embedded DERP STUN listener
+                  ansible.builtin.include_tasks: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/tasks/validate_config.yml"
+                  vars:
+                    headscale_config_derp_server_enabled: true
+                    headscale_config_derp_server_stun_listen_addr: "3478"
+                    headscale_container_derp_stun_bind_port: 3478
+                    headscale_container_derp_stun_port: 3478
+
+                - name: Fail because the malformed listener was accepted
+                  ansible.builtin.fail:
+                    msg: Malformed published embedded DERP STUN listener was unexpectedly accepted
+              rescue:
+                - name: Assert the listener format check caused the failure
+                  ansible.builtin.assert:
+                    that: "'must use a valid host:port value' in ansible_failed_result.msg"
+
         - name: Retrieve the Headscale systemd services log for debugging
           when: headscale_debug_service_enabled | bool
           ansible.builtin.command:
@@ -136,6 +219,37 @@
             that: headscale_derp_probe.status == 200
             fail_msg: "The embedded DERP server did not answer (HTTP {{ headscale_derp_probe.status }})"
             success_msg: "The embedded DERP server answers"
+
+        # Headscale deliberately accepts only Tailscale STUN requests. Build the
+        # same SOFTWARE and FINGERPRINT attributes as tailscale.com's stun.Request.
+        - name: Query the published embedded DERP STUN listener
+          ansible.builtin.command:
+            argv:
+              - python3
+              - -c
+              - |
+                import secrets
+                import socket
+                import struct
+                import zlib
+
+                transaction_id = secrets.token_bytes(12)
+                software_attribute = struct.pack("!HH8s", 0x8022, 8, b"tailnode")
+                request_without_fingerprint = (
+                    struct.pack("!HHI12s", 0x0001, 20, 0x2112A442, transaction_id)
+                    + software_attribute
+                )
+                fingerprint = (zlib.crc32(request_without_fingerprint) & 0xFFFFFFFF) ^ 0x5354554E
+                request = request_without_fingerprint + struct.pack("!HHI", 0x8028, 4, fingerprint)
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                    sock.settimeout(5)
+                    sock.sendto(request, ("127.0.0.1", {{ headscale_molecule_derp_stun_bind_port }}))
+                    response, _ = sock.recvfrom(2048)
+
+                message_type, _, cookie, response_transaction_id = struct.unpack("!HHI12s", response[:20])
+                if message_type != 0x0101 or cookie != 0x2112A442 or response_transaction_id != transaction_id:
+                    raise SystemExit("invalid STUN binding response")
+          changed_when: false
 
         # From here on the daemon is asked to actually do something: create a user,
         # issue it a pre-auth key, and read both back. Each of these is a round

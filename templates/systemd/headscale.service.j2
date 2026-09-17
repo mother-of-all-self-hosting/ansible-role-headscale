@@ -34,10 +34,16 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       --hostname={{ headscale_container_hostname }} \
       {% endif %}
       {% if headscale_container_http_api_bind_port %}
-      -p {{ headscale_container_http_api_bind_port }}:8080/tcp \
+      -p {{ headscale_container_http_api_bind_port }}:{{ headscale_container_http_api_port }}/tcp \
       {% endif %}
       {% if headscale_container_http_metrics_bind_port %}
-      -p {{ headscale_container_http_metrics_bind_port }}:9090/tcp \
+      -p {{ headscale_container_http_metrics_bind_port }}:{{ headscale_container_http_metrics_port }}/tcp \
+      {% endif %}
+      {% if headscale_container_grpc_bind_port %}
+      -p {{ headscale_container_grpc_bind_port }}:{{ headscale_container_grpc_port }}/tcp \
+      {% endif %}
+      {% if headscale_config_derp_server_enabled and headscale_container_derp_stun_bind_port %}
+      -p {{ headscale_container_derp_stun_bind_port }}:{{ headscale_container_derp_stun_port }}/udp \
       {% endif %}
       --env-file={{ headscale_base_path }}/env \
       --label-file={{ headscale_base_path }}/labels \

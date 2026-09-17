@@ -69,6 +69,15 @@ headscale_container_http_metrics_bind_port: ""
 # Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:50443"), just a port number or an empty string to not expose.
 headscale_container_grpc_bind_port: ""
 
+# Specify how the container publishes the embedded DERP STUN port (as defined by `headscale_container_derp_stun_port`).
+#
+# Headscale advertises the port from `headscale_config_derp_server_stun_listen_addr` to clients. When publishing it,
+# that listener port must match `headscale_container_derp_stun_port`. For direct publication, the host port should also
+# match (e.g. "3478" or "0.0.0.0:3478"). A different Docker host port requires an external router or firewall to
+# forward the advertised public UDP port to it.
+# An empty string does not publish the port.
+headscale_container_derp_stun_bind_port: ""
+
 # The HTTP API port (8080) to use inside the container.
 # Also see: `headscale_container_http_api_bind_port` and `headscale_config_listen_addr`.
 headscale_container_http_api_port: 8080
@@ -80,6 +89,10 @@ headscale_container_http_metrics_port: 9090
 # The gRPC port (50443) to use inside the container.
 # Also see: `headscale_container_grpc_bind_port` and `headscale_config_grpc_listen_addr`.
 headscale_container_grpc_port: 50443
+
+# The embedded DERP STUN port (3478) to use inside the container.
+# Also see: `headscale_container_derp_stun_bind_port` and `headscale_config_derp_server_stun_listen_addr`.
+headscale_container_derp_stun_port: 3478
 
 # A list of additional container networks that the container would be connected to.
 # The role does not create these networks, so make sure they already exist.
@@ -301,8 +314,9 @@ headscale_config_derp_server_region_name: "Headscale Embedded DERP"
 # When enabled, only allows clients associated with this server to use the embedded DERP server.
 headscale_config_derp_server_verify_clients: true
 
-# Controls the `derp.server.stun_listen_addr` configuration value
-headscale_config_derp_server_stun_listen_addr: "0.0.0.0:3478"
+# Controls the `derp.server.stun_listen_addr` configuration value.
+# Headscale also advertises this port to clients, so it must match `headscale_container_derp_stun_port`.
+headscale_config_derp_server_stun_listen_addr: "0.0.0.0:{{ headscale_container_derp_stun_port }}"
 
 # Controls the `derp.server.private_key_path` configuration value
 headscale_config_derp_server_private_key_path: "/var/lib/headscale/derp_server_private.key"
@@ -310,11 +324,13 @@ headscale_config_derp_server_private_key_path: "/var/lib/headscale/derp_server_p
 # Controls the `derp.server.automatically_add_embedded_derp_region` configuration value
 headscale_config_derp_server_automatically_add_embedded_derp_region: true
 
-# Controls the `derp.server.ipv4` configuration value
-headscale_config_derp_server_ipv4: 198.51.100.1
+# Controls the optional `derp.server.ipv4` configuration value.
+# Leave empty to let clients resolve `headscale_hostname`, or set the actual public IPv4 address of the embedded DERP server.
+headscale_config_derp_server_ipv4: ""
 
-# Controls the `derp.server.ipv6` configuration value
-headscale_config_derp_server_ipv6: 2001:db8::1
+# Controls the optional `derp.server.ipv6` configuration value.
+# Leave empty to let clients resolve `headscale_hostname`, or set the actual public IPv6 address of the embedded DERP server.
+headscale_config_derp_server_ipv6: ""
 
 # Controls the `derp.server.urls` configuration value
 headscale_config_derp_server_urls:

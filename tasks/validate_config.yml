@@ -30,6 +30,38 @@
     - { name: headscale_path_prefix, when: true }
     - { name: headscale_container_network, when: true }
     - { name: headscale_config_dns_base_domain, when: "{{ headscale_config_dns_magic_dns }}" }
+    - { name: headscale_config_derp_server_stun_listen_addr, when: "{{ headscale_config_derp_server_enabled }}" }
+
+- name: Fail if published embedded DERP STUN listener is invalid
+  vars:
+    headscale_config_derp_server_stun_listen_addr_string: "{{ headscale_config_derp_server_stun_listen_addr | string }}"
+    headscale_config_derp_server_stun_listen_port: "{{ (headscale_config_derp_server_stun_listen_addr_string | split(':') | last) | int }}"
+  ansible.builtin.fail:
+    msg: >-
+      headscale_config_derp_server_stun_listen_addr must use a valid host:port value with a port between 1 and 65535
+      when the embedded DERP STUN listener is published (for example, 0.0.0.0:3478 or [::]:3478).
+  when:
+    - headscale_config_derp_server_enabled | bool
+    - headscale_container_derp_stun_bind_port | string | length > 0
+    - >-
+      not (
+        headscale_config_derp_server_stun_listen_addr_string is match('^(?:\\[[^]]+\\]|[^:]*):[0-9]+$')
+        and headscale_config_derp_server_stun_listen_port >= 1
+        and headscale_config_derp_server_stun_listen_port <= 65535
+      )
+
+- name: Fail if published embedded DERP STUN listener and container ports do not match
+  vars:
+    headscale_config_derp_server_stun_listen_port: "{{ (headscale_config_derp_server_stun_listen_addr | string | split(':') | last) | int }}"
+    headscale_container_derp_stun_internal_port: "{{ headscale_container_derp_stun_port | int }}"
+  ansible.builtin.fail:
+    msg: >-
+      headscale_config_derp_server_stun_listen_addr and headscale_container_derp_stun_port must use the same port.
+      The container publication must target the port on which Headscale's embedded DERP STUN server listens.
+  when:
+    - headscale_config_derp_server_enabled | bool
+    - headscale_container_derp_stun_bind_port | string | length > 0
+    - headscale_config_derp_server_stun_listen_port != headscale_container_derp_stun_internal_port
 
 - name: Fail if headscale_config_dns_base_domain matches headscale_hostname
   ansible.builtin.fail:
