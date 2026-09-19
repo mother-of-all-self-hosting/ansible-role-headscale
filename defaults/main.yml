@@ -181,6 +181,13 @@ headscale_container_extra_arguments: "{{ headscale_container_extra_arguments_aut
 headscale_container_extra_arguments_auto: []
 headscale_container_extra_arguments_custom: []
 
+# A list of extra arguments to pass to the process inside the container
+# Example: ['--SOME_ARGUMENT']
+headscale_process_extra_arguments: "{{ headscale_process_extra_arguments_auto + headscale_process_extra_arguments_custom }}"
+headscale_process_extra_arguments_auto:
+  - serve
+headscale_process_extra_arguments_custom: []
+
 # Specifies the value of the `X-XSS-Protection` header
 # Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
 #
@@ -270,9 +277,6 @@ headscale_container_cleanup_command: |
   done;
   echo "Failed to remove stale container {{ headscale_identifier }} after {{ headscale_container_cleanup_timeout_seconds }} attempts" >&2;
   exit 1
-
-# The command to run inside the container
-headscale_container_command: serve
 
 # Controls the `server_url` configuration value
 headscale_config_server_url: "{{ headscale_scheme }}://{{ headscale_hostname }}"
