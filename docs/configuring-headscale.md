@@ -22,7 +22,7 @@ This is an [Ansible](https://www.ansible.com/) role which installs [Headscale](h
 
 Headscale is an open-source, self-hosted implementation of the [Tailscale](https://tailscale.com/) control server.
 
-See the project's [documentation](https://headscale.net/stable/usage/getting-started/) to learn what Headscale does and why it might be useful to you.
+Refer to the project's [documentation](https://headscale.net/stable/usage/getting-started/) to learn what Headscale does and why it might be useful to you.
 
 ## Adjusting the playbook configuration
 
@@ -58,15 +58,13 @@ After adjusting the hostname, make sure to adjust your DNS records to point the 
 
 **Note**: hosting Headscale under a subpath (by configuring the `headscale_path_prefix` variable) does not seem to be possible due to Headscale's technical limitations.
 
-### Single-Sign-On (SSO) integration
+### Configuring Single-Sign-On (SSO) integration
 
-Headscale supports Single-Sign-On (SSO) via OIDC. To make use of it, an Identity Provider (IdP) like [authentik](authentik.md), [Authelia](https://www.authelia.com/), [Keycloak](keycloak.md) or [Tinyauth](tinyauth.md) needs to be set up.
+Headscale supports Single-Sign-On (SSO) via OIDC. To make use of it, an Identity Provider (IdP) like [authentik](https://goauthentik.io/), [Authelia](https://www.authelia.com/), [Keycloak](https://www.keycloak.org/) or [Tinyauth](https://tinyauth.app) needs to be set up.
 
 As Headscale's built-in authentication is somewhat manual, setting up OIDC can provide a smoother user experience.
 
-For example, you can enable SSO with authentik via OIDC by following the steps below.
-
-Here, we are using Ansible Vault to supply both our `domain` as well as `client_id` and `client_secret`. Add the following configuration to your `vars.yml` file. This assumes that you picked the slug `headscale` in authentik when adding Headscale as an application. If not, replace `headscale` in the `headscale_config_oidc_issuer` value.
+For example, you can enable SSO with authentik via OIDC by adding the following configuration to your `vars.yml` file (adapt to your needs). Here Ansible Vault is used to supply both our `domain` as well as `client_id` and `client_secret`.
 
 ```yaml
 headscale_config_oidc_enabled: true
@@ -75,16 +73,17 @@ headscale_config_oidc_client_id: "{{ vault_headscale_client_id }}"
 headscale_config_oidc_client_secret: "{{ vault_headscale_client_secret }}"
 headscale_config_oidc_pkce_enabled: true
 
-# To add custom scopes on top of the defaults (openid, profile, email),
-# use headscale_config_oidc_scope_custom. For example:
+# You can add custom scopes on top of the defaults (openid, profile, email) with `headscale_config_oidc_scope_custom`. For example:
 # headscale_config_oidc_scope_custom:
 #   - groups
 ```
 
 > [!NOTE]
-> The `headscale_config_oidc_email_verified_required` variable defaults to `true`, meaning only verified email addresses can authenticate via OIDC. If your Identity Provider does not send the `email_verified: true` claim, you may need to set `headscale_config_oidc_email_verified_required: false`.
+>
+> - This assumes that you picked the slug `headscale` in authentik when adding Headscale as an application. If not, replace `headscale` in the `headscale_config_oidc_issuer` value.
+> - The `headscale_config_oidc_email_verified_required` variable defaults to `true`, meaning only verified email addresses can authenticate via OIDC. If your Identity Provider does not send the `email_verified: true` claim, you may need to set `headscale_config_oidc_email_verified_required: false`.
 
-You can find more details about configuring OIDC by referring to the documentation at both [Headscale](https://headscale.net/stable/ref/oidc/?h=oidc) and [authentik](https://integrations.goauthentik.io/networking/headscale/). Note that Headscale's documentation doesn't explicitly cover authentik.
+You can find more details about configuring OIDC by referring to the documentation at both [Headscale](https://headscale.net/stable/ref/oidc/?h=oidc) and [authentik](https://integrations.goauthentik.io/networking/headscale/).
 
 ### Extending the configuration
 
@@ -110,21 +109,14 @@ After running the command for installation, Headscale becomes available at the s
 
 After installation, you would normally:
 
-- first, [create some users](#creating-users)
-- then, [connect some devices](#connecting-devices) by the official Tailscale applications, configured to talk to your own Headscale server
+1. Create users
+2. Connect devices with official Tailscale applications, configured to talk to your own Headscale server
 
-### Convenience script to call the binary
+### Creating users (optional)
 
-We provide a `/mash/headscale/bin/headscale` script on the server, which forwards commands to the `headscale` binary inside the container (`mash-headscale`).
+💡 Creating users is not strictly required. You can also connect devices using [pre-auth keys](#connecting-linux-devices-with-a-preshared-key) without creating users first.
 
-Example usage: `/mash/headscale/bin/headscale version`
-
-> [!WARNING]
-> Command arguments which contain spaces may not be forwarded correctly.
-
-### Creating users
-
-To [create a user](https://headscale.net/stable/usage/getting-started/#create-a-user), run a command like this:
+After logging in with SSH to the server where Headscale is installed, you can create a user by running a command like this:
 
 ```sh
 /usr/bin/env docker exec -it mash-headscale \
@@ -134,12 +126,16 @@ john.doe \
 --email "john.doe@example.com"
 ```
 
-> [!WARNING]
+Refer to [this page](https://headscale.net/stable/usage/getting-started/#create-a-user) on the Headscale's official documentation for details about the command.
+
+>[!NOTE]
 > We use `docker exec` here because the [convenience script](#convenience-script-to-call-the-binary) does not handle forwarding arguments with spaces (like `--display-name`) correctly.
 
-💡 You can [list the existing users](https://headscale.net/stable/usage/getting-started/#list-existing-users) with a command like this: `/mash/headscale/bin/headscale users list`
+If you want to [list the existing users](https://headscale.net/stable/usage/getting-started/#list-existing-users), run a command as below:
 
-💡 Creating users is not strictly required. You can also connect devices using [pre-auth keys](#connecting-linux-devices-with-a-preshared-key) without creating users first.
+```sh
+/mash/headscale/bin/headscale users list
+```
 
 ### Connecting devices
 
@@ -148,23 +144,22 @@ Here are some quick guides for the various platforms:
 - [Android devices](https://headscale.net/stable/usage/connect/android/)
 - [Apple devices](https://headscale.net/stable/usage/connect/apple/)
 - [Windows devices](https://headscale.net/stable/usage/connect/windows/)
-- Linux: install the `tailscale` CLI. See the official [Setting up Tailscale on Linux](https://tailscale.com/kb/1031/install-linux) documentation, or the [Archlinux Tailscale Wiki page](https://wiki.archlinux.org/title/Tailscale) (and specifically its [Third-party clients](https://wiki.archlinux.org/title/Tailscale#Third-party_clients) section for GUI clients).
+- Linux: install the `tailscale` CLI. Refer to this [official documentation](https://tailscale.com/kb/1031/install-linux) about setting up Tailscale on Linux. [Archlinux Tailscale Wiki page](https://wiki.archlinux.org/title/Tailscale) (and specifically its [Third-party clients](https://wiki.archlinux.org/title/Tailscale#Third-party_clients) section for GUI clients) is available too.
 
-All of these platforms would require confirmation after initial login, so consult the [Connecting Linux devices with manual confirmation](#connecting-linux-devices-with-manual-confirmation) section below for details on how to do it.
+All of these platforms will require confirmation after initial login, so consult the section below for details.
 
 #### Connecting Linux devices with manual confirmation
 
-To connect a Linux device, you can use a `tailscale up` command like this:
+To connect a Linux device with manual confirmation, you can run a `tailscale up` command like this:
 
 ```sh
 tailscale up --login-server=https://headscale.example.com
 ```
 
-💡 You may wish to add additional arguments to this command, such as `--hostname`, `--advertise-exit-node`, `--advertise-routes`, etc. These settings can also be configured later using `tailscale set` (e.g. `tailscale set --hostname=custom-hostname-for-my-device`).
+>[!NOTE]
+> You may wish to add additional arguments to this command, such as `--hostname`, `--advertise-exit-node`, `--advertise-routes`, etc. These settings can also be configured later using `tailscale set` (e.g. `tailscale set --hostname=custom-hostname-for-my-device`).
 
-Running the `tailscale up` command will print a URL you need to open in your browser to complete the setup.
-
-The URL would contain a `headscale` command you need to run. It looks something like this:
+Running the `tailscale up` command will print a URL you need to open in your browser to complete the setup. The URL should contain a `headscale` command you need to run. It looks something like this:
 
 ```sh
 headscale nodes register --user USERNAME --key mkey:....
@@ -173,29 +168,38 @@ headscale nodes register --user USERNAME --key mkey:....
 Take this command and:
 
 - replace the `headscale` prefix with `/mash/headscale/bin/headscale`
-- replace `USERNAME` with the username of a valid [user you created](#creating-users) earlier
+- replace `USERNAME` with the username of a valid [user you created](#creating-users-optional) earlier
 - run it on the Headscale server
 
 #### Connecting Linux devices with a preshared key
 
-Instead of following the manual back-and-forth flow as specified in [Connecting Linux devices with manual confirmation](#connecting-linux-devices-with-manual-confirmation), you can also use a preshared key to connect your device.
+Instead of following the manual back-and-forth flow, you can also use a preshared key to connect your device.
 
-**First**, generate a preshared key:
+First, generate a preshared key:
 
 ```sh
 /mash/headscale/bin/headscale preauthkeys create
 ```
 
-> [!TIP]
+>[!NOTE]
 > You may optionally associate the key with a user by passing `--user=NUMERIC_USER_ID` (e.g. `--user=1`). To find a user's numeric ID, run: `/mash/headscale/bin/headscale users list --name=john.doe`
 
-**Then**, connect your device with the preshared key:
+Then, connect your device with the preshared key:
 
 ```sh
 tailscale up --login-server=https://headscale.example.com --auth-key=...
 ```
 
 The device will be automatically connected to the Headscale server, without any additional approval steps.
+
+### Convenience script to call the binary
+
+The installation command sets up a `/mash/headscale/bin/headscale` script on the server. It can be used to forward commands to the `headscale` binary inside the container. Make sure to adjust the path to the binary as necessary.
+
+Example usage: `/mash/headscale/bin/headscale version`
+
+>[!WARNING]
+> Command arguments which contain spaces may not be forwarded correctly.
 
 ## Troubleshooting
 
