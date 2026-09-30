@@ -165,7 +165,7 @@ After installation, you would normally:
 
 💡 Creating users is not strictly required. You can also connect devices using [pre-auth keys](#connecting-linux-devices-with-a-preshared-key) without creating users first.
 
-After logging in with SSH to the server where Headscale is installed, you can create a user by running a command like this:
+After logging in with SSH to the server where Headscale is installed, you can create a user by running a command like this (if Headscale is managed with the MASH playbook):
 
 ```sh
 /usr/bin/env docker exec -it mash-headscale \
@@ -216,7 +216,7 @@ headscale nodes register --user USERNAME --key mkey:....
 
 Take this command and:
 
-- replace the `headscale` prefix with `/mash/headscale/bin/headscale`
+- replace the `headscale` prefix with `/mash/headscale/bin/headscale` (adjust the path as necessary)
 - replace `USERNAME` with the username of a valid [user you created](#creating-users-optional) earlier
 - run it on the Headscale server
 
