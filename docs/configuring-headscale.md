@@ -58,6 +58,55 @@ After adjusting the hostname, make sure to adjust your DNS records to point the 
 
 **Note**: hosting Headscale under a subpath (by configuring the `headscale_path_prefix` variable) does not seem to be possible due to Headscale's technical limitations.
 
+### Configuring ports
+
+#### Configuring embedded DERP server
+
+Headscale serves the embedded DERP relay through its normal HTTPS endpoint, but its STUN listener uses a separate UDP port. To publish the default UDP port from the container, add the following configuration to your `vars.yml` file:
+
+```yaml
+headscale_config_derp_server_enabled: true
+
+headscale_container_derp_stun_bind_port: 3478
+```
+
+Publication is opt-in to preserve existing deployments. The host firewall and any external router or firewall must also allow and, when applicable, forward UDP 3478. Headscale advertises the port from `headscale_config_derp_server_stun_listen_addr`, so when publishing it that listener port must match `headscale_container_derp_stun_port` and be reachable externally under the same public port number.
+
+For direct Docker publication, the host port in `headscale_container_derp_stun_bind_port` should also match. A different Docker host port requires an external router or firewall to forward the advertised public UDP port to it. Headscale does not currently support configuring a separate advertised STUN port.
+
+##### Avoiding port conflicts
+
+Publishing UDP 3478 conflicts with another service already bound to that port on an overlapping host IP address.
+
+If UDP 3478 is occupied, choose a free port and change both the container listener and host publication by adding the following configuration to your `vars.yml` file (adapt to your needs):
+
+```yaml
+headscale_config_derp_server_enabled: true
+
+headscale_container_derp_stun_port: 3480
+headscale_container_derp_stun_bind_port: 3480
+```
+
+It is also necessary to remove or update any existing listener override. Please note that changing only the host publication does not change the port advertised to clients.
+
+##### Advertised addresses
+
+By default, `headscale_config_derp_server_ipv4` and `headscale_config_derp_server_ipv6` are empty, so clients resolve the hostname from `headscale_config_server_url` (normally derived from `headscale_hostname`). Headscale recommends setting the embedded DERP server's actual public IPv4 and IPv6 addresses for better connection stability, especially when DNS is unavailable.
+
+##### Updating an existing deployment
+
+If `headscale_container_extra_arguments_custom` already contains a manual STUN `-p` mapping, remove that mapping before setting `headscale_container_derp_stun_bind_port` to avoid publishing the same container port twice.
+
+Existing explicit STUN listener overrides must use a valid `host:port` value and match `headscale_container_derp_stun_port` when the role publishes the listener. If you override the configuration or extend it with `headscale_configuration_extension_yaml`, keep the resulting listener aligned with the container publication as well.
+
+The address defaults no longer use documentation-only IP addresses. Explicit `headscale_config_derp_server_ipv4` and `headscale_config_derp_server_ipv6` overrides are preserved; replace any copied example addresses with your server's actual public addresses, or remove the overrides to use DNS.
+
+#### Other container port publications
+
+HTTP API and metrics publications use `headscale_container_http_api_port` and `headscale_container_http_metrics_port` as their container targets. If you override `headscale_config_listen_addr` or `headscale_config_metrics_listen_addr`, keep its port aligned with the corresponding container port.
+
+`headscale_container_grpc_bind_port` publishes the configured `headscale_container_grpc_port` over TCP. **Please review existing nonempty gRPC bindings before upgrading:** previously ignored values now take effect and may expose the listener on the host. Leave the bind variable empty if direct host publication is not wanted, or select the intended host IP and port. Please note that publication alone does not configure gRPC TLS or authentication.
+
 ### Configuring Single-Sign-On (SSO) integration
 
 Headscale supports Single-Sign-On (SSO) via OIDC. To make use of it, an Identity Provider (IdP) like [authentik](https://goauthentik.io/), [Authelia](https://www.authelia.com/), [Keycloak](https://www.keycloak.org/) or [Tinyauth](https://tinyauth.app) needs to be set up.
