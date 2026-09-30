@@ -202,7 +202,7 @@ All of these platforms will require confirmation after initial login, so consult
 To connect a Linux device with manual confirmation, you can run a `tailscale up` command like this:
 
 ```sh
-tailscale up --login-server=https://headscale.example.com
+tailscale up --login-server=https://example.com
 ```
 
 >[!NOTE]
@@ -236,7 +236,7 @@ First, generate a preshared key:
 Then, connect your device with the preshared key:
 
 ```sh
-tailscale up --login-server=https://headscale.example.com --auth-key=...
+tailscale up --login-server=https://example.com --auth-key=...
 ```
 
 The device will be automatically connected to the Headscale server, without any additional approval steps.
