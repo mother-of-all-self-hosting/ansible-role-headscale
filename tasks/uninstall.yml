@@ -25,7 +25,7 @@
         state: absent
 
     - name: Ensure Headscale container network does not exist
-      when: headscale_container_network_deletion_enabled
+      when: headscale_container_network_deletion_enabled and headscale_container_network != 'host'
       block:
         - name: Ensure Headscale container network does not exist via community.docker.docker_network
           when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
